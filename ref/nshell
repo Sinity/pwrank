@@ -1,0 +1,2 @@
+#!/bin/sh
+exec nix-shell --packages 'rWrapper.override{packages = [ rPackages.argparser rPackages.BradleyTerry2 ];}'

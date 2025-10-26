@@ -6,4 +6,6 @@ instance/
 .dmypy.json
 dmypy.json
 node_modules/
+db
+data/
 
