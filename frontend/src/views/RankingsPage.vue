@@ -1,353 +1,485 @@
 <template>
-  <div class="APIIntro">
-    <Dialog header="Create ranking" v-model:visible="displayCreateRankingModal" :style="{width: '50vw'}" :modal="true">
+  <div class="rankings-page">
+    <Dialog
+      header="Create ranking"
+      v-model:visible="displayCreateRankingModal"
+      :style="{ width: '50vw' }"
+      :modal="true"
+    >
       <div class="p-fluid">
         <div class="p-field p-grid">
           <div class="p-col-12 p-md-10">
-            <InputText v-model="name" id="name" type="text" placeholder="Name" />
+            <InputText
+              v-model="name"
+              id="name"
+              type="text"
+              placeholder="Name"
+            />
           </div>
         </div>
         <div class="p-field p-grid">
-            <div class="p-col-12 p-md-10">
-              <Dropdown v-model="datasource" :options="datasourceOptions" optionLabel="label" optionValue="value" placeholder="Datasource"/>
-            </div>
+          <div class="p-col-12 p-md-10">
+            <Dropdown
+              v-model="datasource"
+              :options="datasourceOptions"
+              optionLabel="label"
+              optionValue="value"
+              placeholder="Datasource"
+            />
+          </div>
         </div>
       </div>
 
       <template #footer>
-        <Button label="Submit" icon="pi pi-check" @click="createRanking" autofocus />
+        <Button
+          label="Submit"
+          icon="pi pi-check"
+          @click="createRanking"
+          :loading="saving"
+          autofocus
+        />
       </template>
     </Dialog>
 
-    <Dialog header="Modify ranking" v-model:visible="displayModifyRankingModal" :style="{width: '50vw'}" :modal="true">
+    <Dialog
+      header="Modify ranking"
+      v-model:visible="displayModifyRankingModal"
+      :style="{ width: '50vw' }"
+      :modal="true"
+    >
       <div class="p-formgroup-inline">
         <div class="p-field">
-          <label for="name" class="p-sr-only">Name</label>
-          <InputText v-model="name" id="name" type="text" placeholder="Name" />
+          <label for="edit-name" class="p-sr-only">Name</label>
+          <InputText
+            v-model="name"
+            id="edit-name"
+            type="text"
+            placeholder="Name"
+          />
         </div>
       </div>
 
       <template #footer>
-        <Button label="Submit" icon="pi pi-check" @click="modifyRanking" autofocus />
+        <Button
+          label="Submit"
+          icon="pi pi-check"
+          @click="modifyRanking"
+          :loading="saving"
+          autofocus
+        />
       </template>
     </Dialog>
-        
+
     <div class="card">
-      <DataView :value="rankings" :layout="layout" :paginator="true" :rows="9" :sortOrder="sortOrder" :sortField="sortField">
+      <DataView
+        :value="rankings"
+        :layout="layout"
+        :paginator="true"
+        :rows="9"
+        :sortOrder="sortOrder"
+        :sortField="sortField"
+        :loading="loading"
+      >
         <template #header>
           <div class="p-grid p-nogutter">
-            <div class="p-col-2" style="text-align: left">
-              <Dropdown v-model="sortKey" :options="sortOptions" optionLabel="label" placeholder="Sort by" @change="onSortChange($event)"/>
+            <div class="p-col-12 p-md-3" style="text-align: left">
+              <Dropdown
+                v-model="sortKey"
+                :options="sortOptions"
+                optionLabel="label"
+                placeholder="Sort by"
+                @change="onSortChange"
+              />
             </div>
-            <div class="p-col-8" style="text-align: center">
-              <Button @click="showCreateRanking" type="submit" icon="pi pi-plus" label="Create new" />
+            <div class="p-col-12 p-md-6" style="text-align: center">
+              <Button
+                icon="pi pi-plus"
+                label="Create new"
+                @click="showCreateRanking"
+              />
             </div>
-            <div class="p-col-2" style="text-align: right">
+            <div class="p-col-12 p-md-3" style="text-align: right">
               <DataViewLayoutOptions v-model="layout" />
             </div>
           </div>
         </template>
 
-        <template #list="slotProps">
+        <template #list="{ data }">
           <div class="p-col-12">
             <div class="product-list-item">
-              <img :src="`${baseURL}${slotProps.data.datasource}.png`" :alt="slotProps.data.datasource"/>
+              <img
+                :src="`${baseURL}${data.datasource}.png`"
+                :alt="data.datasource"
+              />
               <div class="product-list-detail">
-                <i class="pi pi-tag product-category-icon"></i><span class="product-category">{{slotProps.data.datasource}}</span>
-                <div class="product-name">{{slotProps.data.name}}</div>
-                <div class="product-description">{{slotProps.data.id}}</div>
-                <div><span :class="'product-badge status-'+slotProps.data.datasource.toLowerCase()">{{slotProps.data.item_count}} items</span></div>
+                <i class="pi pi-tag product-category-icon"></i>
+                <span class="product-category">{{ data.datasource }}</span>
+                <div class="product-name">{{ data.name }}</div>
+                <div class="product-description">{{ data.id }}</div>
+                <div>
+                  <span :class="badgeClass(data.datasource)"
+                    >{{ data.item_count }} items</span
+                  >
+                </div>
               </div>
               <div class="product-list-action">
-                <Button class="" @click="$router.push(`/ranking/${slotProps.data.id}`)" type="submit" icon="pi pi-bars" label="Items" />
-                <Button class="p-button-warning" @click="showModifyRanking(slotProps.data)" type="submit" icon="pi pi-pencil" label="Edit"/>
-                <Button class="p-button-danger" icon="pi pi-trash" label="Delete" @click="deleteRanking(slotProps.data.id)" />
+                <Button
+                  icon="pi pi-bars"
+                  label="Open"
+                  @click="
+                    router.push({ name: 'Ranking', params: { id: data.id } })
+                  "
+                />
+                <Button
+                  class="p-button-warning"
+                  icon="pi pi-pencil"
+                  label="Edit"
+                  @click="showModifyRanking(data)"
+                />
+                <Button
+                  class="p-button-danger"
+                  icon="pi pi-trash"
+                  label="Delete"
+                  @click="deleteRanking(data.id)"
+                />
               </div>
             </div>
           </div>
         </template>
 
-        <template #grid="slotProps">
+        <template #grid="{ data }">
           <div class="p-col-12 p-md-4">
             <div class="product-grid-item card">
               <div class="product-grid-item-top">
                 <div>
                   <i class="pi pi-tag product-category-icon"></i>
-                  <span class="product-category">{{slotProps.data.datasource}}</span>
+                  <span class="product-category">{{ data.datasource }}</span>
                 </div>
-                <span :class="'product-badge status-'+slotProps.data.datasource.toLowerCase()">{{slotProps.data.item_count}} items</span>
+                <span :class="badgeClass(data.datasource)"
+                  >{{ data.item_count }} items</span
+                >
               </div>
               <div class="product-grid-item-content">
-                <img :src="`${baseURL}${slotProps.data.datasource}.png`" :alt="slotProps.data.datasource"/>
-                <div class="product-name">{{slotProps.data.name}}</div>
-                <div class="product-description">{{slotProps.data.id}}</div>
+                <img
+                  :src="`${baseURL}${data.datasource}.png`"
+                  :alt="data.datasource"
+                />
+                <div class="product-name">{{ data.name }}</div>
+                <div class="product-description">{{ data.id }}</div>
               </div>
               <div class="product-grid-item-bottom">
-                <Button class="" @click="$router.push(`/ranking/${slotProps.data.id}`)" type="submit" icon="pi pi-bars" />
-                <Button class="p-button-warning" @click="showModifyRanking(slotProps.data)" type="submit" icon="pi pi-pencil" />
-                <Button class="p-button-danger" icon="pi pi-trash" @click="deleteRanking(slotProps.data.id)" />
+                <Button
+                  icon="pi pi-bars"
+                  @click="
+                    router.push({ name: 'Ranking', params: { id: data.id } })
+                  "
+                />
+                <Button
+                  class="p-button-warning"
+                  icon="pi pi-pencil"
+                  @click="showModifyRanking(data)"
+                />
+                <Button
+                  class="p-button-danger"
+                  icon="pi pi-trash"
+                  @click="deleteRanking(data.id)"
+                />
               </div>
             </div>
           </div>
         </template>
       </DataView>
     </div>
-
   </div>
 </template>
 
-<script>
-import { REST } from "../rest.js";
-export default {
-  data: function() {
-    return {
-      rankings: null,
-      baseURL: process.env.BASE_URL,
-      
-      displayCreateRankingModal: false,
-      displayModifyRankingModal: false,
-      rankingId: "",
-      name: "",
-      datasourceOptions: [
-          {label: 'Steam', value: 'steam'},
-          {label: 'Anilist', value: 'anilist'}
-      ],
-      datasource: "steam",
+<script setup>
+import { onMounted, ref } from "vue";
+import { useRouter } from "vue-router";
+import { useToast } from "primevue/usetoast";
 
-      layout: 'grid',
-      sortKey: null,
-      sortOrder: null,
-      sortField: null,
-      sortOptions: [
-          {label: 'Item count High to Low', value: '!item_count'},
-          {label: 'Item count Low to High', value: 'item_count'},
-          {label: 'Name High to Low', value: '!name'},
-          {label: 'Name Low to High', value: 'name'},
-          {label: 'ID High to Low', value: '!id'},
-          {label: 'ID Low to High', value: 'id'},
-      ]
-    };
-  },
-  methods: {
-    async refreshRankings() {
-      const resp = await REST.get("/ranking");
-      const respJSON = await resp.json();
-      this.rankings = respJSON.rankings;
-    },
+import { REST, HttpError } from "../rest";
 
-    showCreateRanking() {
-      this.name = "";
-      this.datasource = "";
-      this.displayCreateRankingModal = true;
-    },
-    showModifyRanking(ranking) {
-      this.rankingId = ranking.id;
-      this.name = ranking.name;
-      this.displayModifyRankingModal = true;
-    },
+const router = useRouter();
+const toast = useToast();
 
-    async createRanking() {
-      const res = await REST.post("/ranking", {
-        name: this.name,
-        source: this.datasource 
-      });
-      const resJSON = await res.json();
-      this.resp = resJSON;
+const rankings = ref([]);
+const loading = ref(false);
+const saving = ref(false);
 
-      this.displayCreateRankingModal = false;
-      this.refreshRankings();
-    },
+const displayCreateRankingModal = ref(false);
+const displayModifyRankingModal = ref(false);
+const rankingId = ref("");
+const name = ref("");
+const datasource = ref("steam");
 
-    async modifyRanking() {
-      const res = await REST.put("/ranking/" + this.rankingId, {
-        name: this.name,
-      });
-      const resJSON = await res.json();
-      this.resp = resJSON;
+const datasourceOptions = [
+  { label: "Steam", value: "steam" },
+  { label: "Anilist", value: "anilist" },
+];
 
-      this.displayModifyRankingModal = false;
-      this.refreshRankings();
-    },
+const layout = ref("grid");
+const sortKey = ref(null);
+const sortOrder = ref(null);
+const sortField = ref(null);
 
-    async deleteRanking(rankingID) {
-      console.log("Delete ranking: " + rankingID);
+const sortOptions = [
+  { label: "Item count High to Low", value: "!item_count" },
+  { label: "Item count Low to High", value: "item_count" },
+  { label: "Name High to Low", value: "!name" },
+  { label: "Name Low to High", value: "name" },
+  { label: "ID High to Low", value: "!id" },
+  { label: "ID Low to High", value: "id" },
+];
 
-      const res = await REST.del("/ranking/" + rankingID);
-      const resJSON = await res.json();
-      this.resp = resJSON;
+const baseURL = process.env.BASE_URL || "/";
 
-      this.refreshRankings();
-    },
+function badgeClass(source) {
+  return `product-badge status-${source.toLowerCase()}`;
+}
 
-    onSortChange(event){
-        const value = event.value.value;
-        const sortValue = event.value;
-
-        if (value.indexOf('!') === 0) {
-            this.sortOrder = -1;
-            this.sortField = value.substring(1, value.length);
-            this.sortKey = sortValue;
-        }
-        else {
-            this.sortOrder = 1;
-            this.sortField = value;
-            this.sortKey = sortValue;
-        }
-    }
-  },
-  created: async function() {
-    this.refreshRankings();
+async function refreshRankings() {
+  loading.value = true;
+  try {
+    const data = await REST.get("/ranking");
+    rankings.value = data.rankings ?? [];
+  } catch (error) {
+    toast.add({
+      severity: "error",
+      summary: "Failed to load rankings",
+      detail:
+        error instanceof HttpError
+          ? error.payload?.message || "Unexpected backend response."
+          : "Unable to reach the backend.",
+      life: 4000,
+    });
+  } finally {
+    loading.value = false;
   }
-};
+}
+
+function showCreateRanking() {
+  name.value = "";
+  datasource.value = "steam";
+  displayCreateRankingModal.value = true;
+}
+
+function showModifyRanking(ranking) {
+  rankingId.value = ranking.id;
+  name.value = ranking.name;
+  displayModifyRankingModal.value = true;
+}
+
+async function createRanking() {
+  saving.value = true;
+  try {
+    const payload = {
+      name: name.value,
+      source: datasource.value,
+    };
+    const data = await REST.post("/ranking", payload);
+    toast.add({
+      severity: "success",
+      summary: "Ranking created",
+      detail: data.message ?? "",
+      life: 3000,
+    });
+    displayCreateRankingModal.value = false;
+    await refreshRankings();
+  } catch (error) {
+    toast.add({
+      severity: "error",
+      summary: "Failed to create ranking",
+      detail:
+        error instanceof HttpError
+          ? error.payload?.message || "Unexpected backend response."
+          : "Unable to reach the backend.",
+      life: 4000,
+    });
+  } finally {
+    saving.value = false;
+  }
+}
+
+async function modifyRanking() {
+  saving.value = true;
+  try {
+    const data = await REST.put(`/ranking/${rankingId.value}`, {
+      name: name.value,
+    });
+    toast.add({
+      severity: "success",
+      summary: "Ranking updated",
+      detail: data.message ?? "",
+      life: 3000,
+    });
+    displayModifyRankingModal.value = false;
+    await refreshRankings();
+  } catch (error) {
+    toast.add({
+      severity: "error",
+      summary: "Failed to update ranking",
+      detail:
+        error instanceof HttpError
+          ? error.payload?.message || "Unexpected backend response."
+          : "Unable to reach the backend.",
+      life: 4000,
+    });
+  } finally {
+    saving.value = false;
+  }
+}
+
+async function deleteRanking(id) {
+  try {
+    const data = await REST.del(`/ranking/${id}`);
+    toast.add({
+      severity: "success",
+      summary: "Ranking deleted",
+      detail: data.message ?? "",
+      life: 3000,
+    });
+    await refreshRankings();
+  } catch (error) {
+    toast.add({
+      severity: "error",
+      summary: "Failed to delete ranking",
+      detail:
+        error instanceof HttpError
+          ? error.payload?.message || "Unexpected backend response."
+          : "Unable to reach the backend.",
+      life: 4000,
+    });
+  }
+}
+
+function onSortChange(event) {
+  const value = event.value.value;
+  const sortValue = event.value;
+
+  if (value.indexOf("!") === 0) {
+    sortOrder.value = -1;
+    sortField.value = value.substring(1);
+    sortKey.value = sortValue;
+  } else {
+    sortOrder.value = 1;
+    sortField.value = value;
+    sortKey.value = sortValue;
+  }
+}
+
+onMounted(refreshRankings);
 </script>
 
-<style lang="scss" scoped>
-
-.p-button {
-    margin: 0.3rem .5rem;
-    min-width: 10rem;
-}
-
-p {
-    margin: 0;
-}
-
-.confirmation-content {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.p-dialog .p-button {
-    min-width: 6rem;
+<style scoped>
+.rankings-page .p-button {
+  margin: 0.3rem 0.5rem;
+  min-width: 10rem;
 }
 
 .card {
-    padding: 2rem;
-    box-shadow: 0 2px 1px -1px rgba(0,0,0,.2), 0 1px 1px 0 rgba(0,0,0,.14), 0 1px 3px 0 rgba(0,0,0,.12);
-    border-radius: 4px;
-    margin-bottom: 2rem;
+  padding: 2rem;
+  box-shadow: 0 2px 1px -1px rgba(0, 0, 0, 0.2), 0 1px 1px 0 rgba(0, 0, 0, 0.14),
+    0 1px 3px 0 rgba(0, 0, 0, 0.12);
+  border-radius: 4px;
+  margin-bottom: 2rem;
 }
+
 .p-dropdown {
-    width: 18rem;
-    font-weight: normal;
+  width: 18rem;
+  font-weight: normal;
 }
 
 .product-name {
-	font-size: 2rem;
-	font-weight: 700;
+  font-size: 2rem;
+  font-weight: 700;
 }
 
 .product-description {
-	margin: 0 0 1rem 0;
+  margin: 0 0 1rem 0;
 }
 
 .product-category-icon {
-	vertical-align: middle;
-	margin-right: .5rem;
+  vertical-align: middle;
+  margin-right: 0.5rem;
 }
 
 .product-category {
-	font-weight: 600;
-	vertical-align: middle;
+  font-weight: 600;
+  vertical-align: middle;
 }
 
 ::v-deep(.product-list-item) {
-	display: flex;
-	align-items: center;
-	padding: 1rem;
-	width: 100%;
+  display: flex;
+  align-items: center;
+  padding: 1rem;
+  width: 100%;
+  gap: 1.5rem;
 
-	img {
-		width: 50px;
-		box-shadow: 0 3px 6px rgba(0, 0, 0, 0.16), 0 3px 6px rgba(0, 0, 0, 0.23);
-		margin-right: 2rem;
-	}
+  img {
+    width: 50px;
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.16), 0 3px 6px rgba(0, 0, 0, 0.23);
+  }
 
-	.product-list-detail {
-		flex: 1 1 0;
-	}
+  .product-list-detail {
+    flex: 1 1 0;
+  }
 
-	.p-rating {
-		margin: 0 0 .5rem 0;
-	}
+  .product-list-action {
+    display: flex;
+    flex-direction: column;
+  }
 
-	.product-price {
-		font-size: 1.5rem;
-		font-weight: 600;
-		margin-bottom: .5rem;
-		align-self: flex-end;
-	}
-
-	.product-list-action {
-		display: flex;
-		flex-direction: column;
-	}
-
-	.p-button {
-		margin-bottom: .5rem;
-	}
+  .p-button {
+    margin-bottom: 0.5rem;
+  }
 }
 
 ::v-deep(.product-grid-item) {
-	margin: .5rem;
-	border: 1px solid #dee2e6;
+  margin: 0.5rem;
+  border: 1px solid #dee2e6;
 
-	.product-grid-item-top {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-	}
-	.product-grid-item-bottom {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-	}
+  .product-grid-item-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .product-grid-item-bottom {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
 
-	img {
-		box-shadow: 0 3px 6px rgba(0, 0, 0, 0.16), 0 3px 6px rgba(0, 0, 0, 0.23);
-		margin: 2rem 0;
-	}
+  img {
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.16), 0 3px 6px rgba(0, 0, 0, 0.23);
+    margin: 2rem 0;
+  }
 
-	.product-grid-item-content {
-		text-align: center;
-	}
-
-	.product-price {
-		font-size: 1.5rem;
-		font-weight: 600;
-	}
+  .product-grid-item-content {
+    text-align: center;
+  }
 }
 
 @media screen and (max-width: 576px) {
-	.product-list-item {
-		flex-direction: column;
-		align-items: center;
+  .product-list-item {
+    flex-direction: column;
+    align-items: center;
 
-		img {
-			margin: 2rem 0;
-		}
+    img {
+      margin: 2rem 0;
+    }
 
-		.product-list-detail {
-			text-align: center;
-		}
+    .product-list-detail {
+      text-align: center;
+    }
 
-		.product-price {
-			align-self: center;
-		}
-
-		.product-list-action {
-			display: flex;
-			flex-direction: column;
-		}
-
-		.product-list-action {
-			margin-top: 2rem;
-			flex-direction: row;
-			justify-content: space-between;
-			align-items: center;
-			width: 100%;
-		}
-	}
+    .product-list-action {
+      margin-top: 2rem;
+      flex-direction: row;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+    }
+  }
 }
 </style>

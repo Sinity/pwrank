@@ -1,128 +1,175 @@
-export const REST = {
-  login, logout, userIdentity,
-  refreshToken,
-  post, get, put, del
-};
+const STORAGE_KEY = "pwrank.auth";
 
-const baseURL = 'http://localhost:5000';
-const storageAuth = 'auth';
+const API_BASE_URL =
+  (typeof process !== "undefined" && process.env?.VUE_APP_API_BASE_URL) ||
+  "http://localhost:5000";
 
-function userIdentity() {
-  return JSON.parse(localStorage.getItem(storageAuth));
+class HttpError extends Error {
+  constructor(response, payload) {
+    super(`HTTP ${response.status}`);
+    this.name = "HttpError";
+    this.response = response;
+    this.payload = payload;
+  }
 }
 
-function logout() {
-  localStorage.removeItem(storageAuth);
-}
-
-async function get(endpoint) {
-  return backendReq('GET', endpoint);
-}
-
-async function post(endpoint, body = {}) {
-  return backendReq('POST', endpoint, body);
-}
-
-async function put(endpoint, body = {}) {
-  return backendReq('PUT', endpoint, body);
-}
-
-async function del(endpoint, body = {}) {
-  return backendReq('DELETE', endpoint, body);
-}
-
-async function login(email, password) {
-  logout();
-  console.log('Login attempt...')
-  const requestParams = {
-    method: 'POST',
-    headers: requestHeaders(),
-    body: JSON.stringify({'email': email, 'password': password})
-  };
-  const resp = await fetch(baseURL + '/auth', requestParams);
-  const respBody = await resp.json();
-
-  if (!resp.ok) {
-    console.log('Login attempt failed, status=', resp.status, 'body=', respBody)
-    return respBody['message'];
+class RestClient {
+  constructor(baseUrl) {
+    this.baseUrl = baseUrl.replace(/\/$/, "");
   }
 
-  let authData = {
-    accessToken: respBody.access_token,
-    refreshToken: respBody.refresh_token,
-    identity: respBody.identity
-  };
-  localStorage.setItem(storageAuth, JSON.stringify(authData));
-  console.log('Logged in', authData)
-  return '';
-}
-
-
-async function refreshToken() {
-  console.log('Refreshing access token...')
-  let uid = userIdentity();
-  if (uid === null) {
-    console.log('Cant refresh access token; user not logged in')
-    return false;
-  }
-
-  const requestParams = {
-    method: 'GET',
-    headers: requestHeaders(uid.refreshToken),
-  };
-  const resp = await fetch(baseURL + '/auth', requestParams);
-  const respBody = await resp.json();
-
-  let refreshedToken = respBody.access_token;
-  if (!refreshedToken) {
-    console.log('Didnt receive refreshed token.');
-    localStorage.setItem(storageAuth, null);
-    return false;
-  }
-
-  console.log('Received refreshed token', refreshedToken);
-  uid.accessToken = refreshedToken;
-  localStorage.setItem(storageAuth, JSON.stringify(uid));
-  return true;
-}
-
-async function backendReq(method, endpoint, body = {}) {
-  let authToken = '';
-  if (userIdentity() !== null)
-    authToken = userIdentity().accessToken;
-
-  let requestParams = {};
-  requestParams['method'] = method;
-  requestParams['headers'] = requestHeaders(authToken);
-  if (method !== 'GET')
-    requestParams['body'] = JSON.stringify(body);
-  console.log('Request to the backend', method, endpoint, requestParams)
-  let resp = await fetch(baseURL + endpoint, requestParams);
-
-  if (!resp.ok) {
-    console.log('HTTP status error', resp.status);
-    if ((resp.status === 401) && userIdentity() !== null) {
-      let auth = userIdentity()
-      auth.accessToken = '';
-      localStorage.setItem(storageAuth, JSON.stringify(auth));
-      console.log('Attempting to refresh access token');
-      await refreshToken();
-      console.log('Token value after refresh', userIdentity().accessToken);
-      console.log('Attempt sending request again...');
-      if (userIdentity().accessToken)
-        return backendReq(method, endpoint, body);
-      console.log('Failed, logging out.');
-      localStorage.setItem(storageAuth, null);
+  get auth() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch (error) {
+      console.warn("Failed to read auth payload:", error);
+      return null;
     }
   }
 
-  return resp;
+  set auth(payload) {
+    if (!payload) {
+      localStorage.removeItem(STORAGE_KEY);
+      return;
+    }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+  }
+
+  logout() {
+    this.auth = null;
+  }
+
+  userIdentity() {
+    return this.auth;
+  }
+
+  async login(email, password) {
+    this.logout();
+    try {
+      const data = await this._requestJson("POST", "/auth", {
+        body: { email, password },
+        includeAuth: false,
+      });
+      this.auth = {
+        accessToken: data.access_token,
+        refreshToken: data.refresh_token,
+        identity: data.identity,
+      };
+      return { ok: true };
+    } catch (error) {
+      const message =
+        error instanceof HttpError
+          ? error.payload?.message || "Authentication failed."
+          : "Unable to reach the backend.";
+      return { ok: false, message };
+    }
+  }
+
+  async refreshToken() {
+    const auth = this.auth;
+    if (!auth?.refreshToken) {
+      return false;
+    }
+
+    try {
+      const data = await this._fetchJson("/auth", {
+        method: "GET",
+        headers: this._headers(auth.refreshToken),
+      });
+      if (!data?.access_token) {
+        this.logout();
+        return false;
+      }
+      this.auth = { ...auth, accessToken: data.access_token };
+      return true;
+    } catch (error) {
+      this.logout();
+      return false;
+    }
+  }
+
+  async get(endpoint) {
+    return this._requestJson("GET", endpoint);
+  }
+
+  async post(endpoint, body) {
+    return this._requestJson("POST", endpoint, { body });
+  }
+
+  async put(endpoint, body) {
+    return this._requestJson("PUT", endpoint, { body });
+  }
+
+  async del(endpoint, body) {
+    return this._requestJson("DELETE", endpoint, { body });
+  }
+
+  async _requestJson(method, endpoint, options = {}) {
+    const { body, includeAuth = true } = options;
+    const response = await this._request(method, endpoint, {
+      body,
+      includeAuth,
+    });
+    const payload = await this._maybeJson(response);
+    if (!response.ok) {
+      throw new HttpError(response, payload);
+    }
+    return payload;
+  }
+
+  async _request(method, endpoint, { body, includeAuth }) {
+    const url = `${this.baseUrl}${endpoint}`;
+    const auth = this.auth;
+    const headers = this._headers(includeAuth ? auth?.accessToken : "");
+
+    const response = await fetch(url, {
+      method,
+      headers,
+      body: this._bodyForRequest(method, body),
+    });
+
+    if (response.status === 401 && includeAuth && auth?.refreshToken) {
+      const refreshed = await this.refreshToken();
+      if (refreshed) {
+        return this._request(method, endpoint, { body, includeAuth });
+      }
+    }
+
+    return response;
+  }
+
+  _headers(token) {
+    const headers = { "Content-Type": "application/json" };
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+    return headers;
+  }
+
+  _bodyForRequest(method, body) {
+    if (method === "GET" || typeof body === "undefined") {
+      return undefined;
+    }
+    return JSON.stringify(body);
+  }
+
+  async _maybeJson(response) {
+    const contentType = response.headers.get("content-type") || "";
+    if (contentType.includes("application/json")) {
+      return response.json();
+    }
+    return null;
+  }
+
+  async _fetchJson(endpoint, options) {
+    const response = await fetch(`${this.baseUrl}${endpoint}`, options);
+    if (!response.ok) {
+      throw new HttpError(response, await this._maybeJson(response));
+    }
+    return this._maybeJson(response);
+  }
 }
 
-function requestHeaders(jwtToken = '') {
-  let headers = { 'Content-Type': 'application/json' };
-  if (jwtToken != '')
-    headers.Authorization = 'Bearer ' + jwtToken;
-  return headers;
-}
-
+export const REST = new RestClient(API_BASE_URL);
+export { HttpError };

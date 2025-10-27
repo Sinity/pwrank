@@ -1,49 +1,44 @@
 import { createRouter, createWebHistory } from "vue-router";
-import LoginPage from "../views/LoginPage.vue";
-import RankingsPage from "../views/RankingsPage.vue";
-import RankingPage from "../views/RankingPage.vue";
-import ComparePage from "../views/ComparePage.vue";
-import { REST } from "../rest.js";
+import { REST } from "../rest";
 
 const routes = [
   {
     path: "/login",
     name: "Login",
-    component: LoginPage
+    component: () => import("../views/LoginPage.vue"),
   },
   {
     path: "/rankings",
     alias: "/",
     name: "Rankings",
-    component: RankingsPage
+    component: () => import("../views/RankingsPage.vue"),
   },
   {
     path: "/ranking/:id",
     name: "Ranking",
-    component: RankingPage
+    component: () => import("../views/RankingPage.vue"),
   },
   {
     path: "/compare/:id",
     name: "Comparing",
-    component: ComparePage
-  }
+    component: () => import("../views/ComparePage.vue"),
+  },
 ];
 
 const router = createRouter({
-  history: createWebHistory(process.env.BASE_URL),
-  routes
+  history: createWebHistory(process.env.BASE_URL || "/"),
+  routes,
 });
 
-router.beforeEach((to, from, next) => {
-  const publicPages = ['/login'];
-  const authRequired = !publicPages.includes(to.path);
-  const loggedIn = (REST.userIdentity() !== null);
+const PUBLIC_ROUTES = new Set(["/login"]);
 
-  if (authRequired && !loggedIn) {
-    return next('/login');
+router.beforeEach((to) => {
+  if (!PUBLIC_ROUTES.has(to.path) && !REST.userIdentity()) {
+    return {
+      path: "/login",
+      query: to.fullPath !== "/login" ? { redirect: to.fullPath } : {},
+    };
   }
-
-  next();
-})
+});
 
 export default router;

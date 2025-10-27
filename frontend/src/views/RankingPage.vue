@@ -1,111 +1,219 @@
 <template>
-  <div class="APIIntro">
-    <h3>Ranking: {{ rankingId }}</h3>
+  <div class="ranking-page">
+    <header class="ranking-page__header">
+      <h2 v-if="ranking">Ranking: {{ ranking.name }}</h2>
+      <div class="ranking-page__actions">
+        <Button
+          icon="pi pi-sync"
+          label="Sync items"
+          @click="openSyncDialog"
+          :disabled="!ranking"
+        />
+        <Button
+          icon="pi pi-arrow-right"
+          label="Compare"
+          class="p-button-secondary"
+          @click="router.push({ name: 'Comparing', params: { id: rankingId } })"
+        />
+      </div>
+    </header>
 
-    <Button class="p-mr-2 p-mb-2" @click="showSyncItems" type="submit" icon="pi pi-plus" label="Sync" />
-    <Dialog v-if="ranking != null" :header="'Sync items from ' + ranking.datasource" v-model:visible="displaySyncModal" :style="{width: '50vw'}" :modal="true">
-      <div v-if="ranking.datasource == 'anilist'" class="p-fluid">
+    <Dialog
+      v-if="ranking"
+      v-model:visible="displaySyncModal"
+      :header="`Sync items from ${ranking.datasource}`"
+      :style="{ width: '50vw' }"
+      :modal="true"
+    >
+      <div v-if="ranking.datasource === 'anilist'" class="p-fluid">
         <div class="p-field p-grid">
-          <label for="anilist_username" class="p-col-12 p-mb-2 p-md-2 p-mb-md-0">Username</label>
-          <div class="p-col-12 p-md-10">
-            <InputText v-model="anilist_username" id="anilist_username" type="text" placeholder="Username" />
+          <label class="p-col-12 p-md-3" for="anilist_username">Username</label>
+          <div class="p-col-12 p-md-9">
+            <InputText
+              id="anilist_username"
+              v-model="anilistUsername"
+              type="text"
+              placeholder="Username"
+            />
           </div>
         </div>
         <div class="p-field p-grid">
-            <label for="anilist_status" class="p-col-12 p-mb-2 p-md-2 p-mb-md-0">Status</label>
-            <div class="p-col-12 p-md-10">
-              <MultiSelect v-model="anilist_selected_statuses" :options="anilist_statusOptions" optionLabel="label" optionValue="value" placeholder="status" display="chip" />
-            </div>
+          <label class="p-col-12 p-md-3" for="anilist_status">Statuses</label>
+          <div class="p-col-12 p-md-9">
+            <MultiSelect
+              v-model="anilistStatuses"
+              :options="anilistStatusOptions"
+              optionLabel="label"
+              optionValue="value"
+              placeholder="Status"
+              display="chip"
+            />
+          </div>
         </div>
       </div>
 
-      <div v-if="ranking.datasource == 'steam'" class="p-fluid">
+      <div v-else-if="ranking.datasource === 'steam'" class="p-fluid">
         <div class="p-field p-grid">
-          <label for="steam_id" class="p-col-12 p-mb-2 p-md-2 p-mb-md-0">Steam ID</label>
-          <div class="p-col-12 p-md-10">
-            <InputText v-model="steam_id" id="steam_id" type="text" placeholder="Steam ID" />
+          <label class="p-col-12 p-md-3" for="steam_id">Steam ID</label>
+          <div class="p-col-12 p-md-9">
+            <InputText
+              id="steam_id"
+              v-model="steamId"
+              type="text"
+              placeholder="Steam ID"
+            />
           </div>
         </div>
       </div>
 
       <template #footer>
-        <Button label="Submit" icon="pi pi-check" @click="syncItems" autofocus />
+        <Button
+          label="Submit"
+          icon="pi pi-check"
+          @click="syncItems"
+          :loading="syncing"
+          autofocus
+        />
       </template>
     </Dialog>
 
-    <Button class="p-mr-2 p-mb-2" @click="$router.push(`/compare/${rankingId}`)" type="submit" icon="pi pi-arrow-right" label="Compare" />
-
-    <DataTable :value="items">
-        <Column field="img_url" header="Image">
-          <template #body="slotProps">
-              <img :src="slotProps.data.img_url" :alt="slotProps.data.img_url" width="80"/>
-          </template>
-        </Column>
-        <Column :sortable="true" field="label" header="Label"></Column>
-        <Column :sortable="true" field="curr_rating" header="Current rating"></Column>
-        <Column :sortable="true" field="init_rating" header="Initial rating"></Column>
-        <Column :sortable="true" field="stderr" header="Standard error"></Column>
+    <DataTable :value="items" :loading="loading">
+      <Column field="img_url" header="Image">
+        <template #body="{ data }">
+          <img :src="data.img_url" :alt="data.label" width="80" />
+        </template>
+      </Column>
+      <Column field="label" header="Label" :sortable="true" />
+      <Column field="curr_rating" header="Current rating" :sortable="true" />
+      <Column field="init_rating" header="Initial rating" :sortable="true" />
+      <Column field="stderr" header="Standard error" :sortable="true" />
     </DataTable>
   </div>
 </template>
 
-<script>
-import { REST } from "../rest.js";
-export default {
-  data: function() {
-    return {
-      ranking: null,
-      rankingId: "",
-      
-      displaySyncModal: false,
-      steam_id: "",
-      anilist_username: "",
-      anilist_selected_statuses: null,
-      anilist_statusOptions: [
-          {label: 'Current', value: 'CURRENT'},
-          {label: 'Planning', value: 'PLANNING'},
-          {label: 'Paused', value: 'PAUSED'},
-          {label: 'Completed', value: 'COMPLETED'},
-          {label: 'Dropped', value: 'DROPPED'},
-          {label: 'Repeating', value: 'REPEATING'}
-      ],
+<script setup>
+import { onMounted, ref, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
+import { useToast } from "primevue/usetoast";
 
-      items: [
-      ]
-    };
-  },
-  methods: {
-    async refreshList() {
-      const resp = await REST.get("/ranking/" + this.rankingId);
-      const respJSON = await resp.json();
-      this.ranking = respJSON.ranking;
-      this.items = respJSON.ranking.items;
-    },
+import { REST, HttpError } from "../rest";
 
-    showSyncItems() {
-      this.username = "";
-      this.anilist_selected_statuses = null;
-      this.displaySyncModal = true;
-    },
-    async syncItems() {
-      let params = {};
-      params['anilist_username'] = this.anilist_username;
-      if (this.anilist_selected_statuses != null)
-        params['anilist_statuses'] = Array.from(this.anilist_selected_statuses);
-      params['steam_id'] = this.steam_id
+const route = useRoute();
+const router = useRouter();
+const toast = useToast();
 
-      await REST.post("/ranking/" + this.rankingId, params);
-      this.refreshList();
-      this.displaySyncModal = false;
-    }
-  },
-  created: async function() {
-    this.rankingId = this.$route.params.id;
-    this.refreshList();
+const ranking = ref(null);
+const items = ref([]);
+const rankingId = ref(route.params.id);
+const loading = ref(false);
+const syncing = ref(false);
+
+const displaySyncModal = ref(false);
+const steamId = ref("");
+const anilistUsername = ref("");
+const anilistStatuses = ref([]);
+
+const anilistStatusOptions = [
+  { label: "Current", value: "CURRENT" },
+  { label: "Planning", value: "PLANNING" },
+  { label: "Paused", value: "PAUSED" },
+  { label: "Completed", value: "COMPLETED" },
+  { label: "Dropped", value: "DROPPED" },
+  { label: "Repeating", value: "REPEATING" },
+];
+
+watch(
+  () => route.params.id,
+  (id) => {
+    rankingId.value = id;
+    loadRanking();
   }
-};
+);
+
+function openSyncDialog() {
+  steamId.value = "";
+  anilistUsername.value = "";
+  anilistStatuses.value = [];
+  displaySyncModal.value = true;
+}
+
+async function loadRanking() {
+  loading.value = true;
+  try {
+    const data = await REST.get(`/ranking/${rankingId.value}`);
+    ranking.value = data.ranking;
+    items.value = data.ranking?.items ?? [];
+  } catch (error) {
+    toast.add({
+      severity: "error",
+      summary: "Failed to load ranking",
+      detail:
+        error instanceof HttpError
+          ? error.payload?.message || "Unexpected backend response."
+          : "Unable to reach the backend.",
+      life: 4000,
+    });
+  } finally {
+    loading.value = false;
+  }
+}
+
+async function syncItems() {
+  if (!ranking.value) return;
+
+  syncing.value = true;
+  const payload = {
+    anilist_username: anilistUsername.value,
+    anilist_statuses: anilistStatuses.value,
+    steam_id: steamId.value,
+  };
+
+  try {
+    await REST.post(`/ranking/${rankingId.value}`, payload);
+    toast.add({
+      severity: "success",
+      summary: "Items synced",
+      detail: "",
+      life: 2000,
+    });
+    await loadRanking();
+    displaySyncModal.value = false;
+  } catch (error) {
+    toast.add({
+      severity: "error",
+      summary: "Sync failed",
+      detail:
+        error instanceof HttpError
+          ? error.payload?.message || "Unexpected backend response."
+          : "Unable to reach the backend.",
+      life: 4000,
+    });
+  } finally {
+    syncing.value = false;
+  }
+}
+
+onMounted(loadRanking);
 </script>
 
-<style lang="scss" scoped>
+<style scoped>
+.ranking-page {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
 
+.ranking-page__header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.ranking-page__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
 </style>

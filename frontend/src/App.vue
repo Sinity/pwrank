@@ -1,63 +1,64 @@
 <template>
-  <div id="nav">
-    <Menubar :model="items" />
-  </div>
-  <div id="page">
-    <router-view />
+  <div class="app-shell">
+    <header class="app-shell__nav">
+      <Menubar :model="menuItems" />
+    </header>
+    <main class="app-shell__page">
+      <RouterView />
+    </main>
   </div>
 </template>
 
-<script>
-export default {
-  data: function() {
-    return {
-      items: [
-        { label: 'Account', to: '/login' },
-        { label: 'Rankings', to: '/rankings' }
-      ]
-    };
-  },
-  methods: {},
-  created: async function() {}
-};
+<script setup>
+import { RouterView } from "vue-router";
+
+const menuItems = [
+  { label: "Account", to: "/login" },
+  { label: "Rankings", to: "/rankings" },
+];
 </script>
 
 <style>
-body {
-    max-width: 1200px;
-    margin: 0 auto !important;
-    float: none !important;
-    height: 100%;
-    overflow-x: hidden;
-    overflow-y: auto;
-    background-color: var(--surface-f);
-    font-family: var(--font-family);
-    font-weight: 400;
-    color: var(--text-color);
-    word-break: break-all;
-    white-space: normal;
+:root {
+  color-scheme: dark;
 }
 
-#nav {
-  padding: 30px;
+:global(body) {
+  margin: 0;
+  min-height: 100vh;
+  background-color: var(--surface-f);
+  font-family: var(--font-family);
+  font-weight: 400;
+  color: var(--text-color);
+}
+
+.app-shell {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.app-shell__nav {
+  padding: 2rem;
   text-align: center;
   background-color: var(--surface-a);
 }
 
-#page {
+.app-shell__page {
+  flex: 1;
   background-color: var(--surface-b);
-  padding:30px;
+  padding: 2rem;
 }
 
-#nav a {
-  font-weight: bold;
-  font-size: 24px;
+.app-shell__nav a {
+  font-weight: 600;
+  font-size: 1.25rem;
   color: var(--secondary-color);
-
 }
 
-#nav a.router-link-exact-active {
-  /*color: #42b983;*/
+.app-shell__nav a.router-link-exact-active {
   color: var(--primary-color);
 }
 </style>
