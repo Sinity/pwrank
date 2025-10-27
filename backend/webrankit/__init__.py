@@ -1,25 +1,20 @@
-"""
-  entry point
-"""
-import sys, os
-sys.path.insert(0, os.path.abspath('./'))
+from __future__ import annotations
 
-from app import app, db_wrapper
-from model import *
-from resource import *
+from flask import Flask
 
-# drop the schema and data, recreate it
-def reset_db():
-    model = [User, Ranking, Item, Comparison]
-    db_wrapper.database.drop_tables(model)
-    db_wrapper.database.create_tables(model)
+from .app import create_app
+from .database import db_proxy
 
 
-def main(debug_mode=False):
-    app.run(debug=debug_mode)
+def reset_db(app: Flask | None = None) -> None:
+    """Utility to recreate all tables – handy for local development."""
+    from .model import Comparison, Item, Ranking, User
 
-if __name__ == '__main__':
-    # reset_db()
-    # pass
-    main(debug_mode=True)
+    app = app or create_app()
+    database = db_proxy.obj
+    with app.app_context():
+        database.drop_tables([Comparison, Item, Ranking, User], safe=True)
+        database.create_tables([Comparison, Item, Ranking, User], safe=True)
 
+
+__all__ = ["create_app", "reset_db"]

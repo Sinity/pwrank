@@ -5,30 +5,31 @@ description = ""
 authors = ["Sinity <ezo.dev@gmail.com>"]
 
 [tool.poetry.dependencies]
-python = "^3.8"
-requests = "^2.25.1"
-Pillow = "^8.0.1"
-Flask = "^1.1.2"
-Flask-Cors = "^3.0.9"
-peewee = "^3.14.2"
-Flask-RESTful = "^0.3.8"
-Flask-JWT-Extended = "^4.1.0"
+python = ">=3.11,<3.13"
+requests = "^2.32.3"
+charset-normalizer = ">=3.3,<3.4"
+Pillow = "^11.0.0"
+Flask = "^2.3.3"
+Flask-Cors = "^4.0.1"
+peewee = "^3.17.5"
+Flask-RESTful = "^0.3.10"
+Flask-JWT-Extended = "^4.6.0"
 passlib = "^1.7.4"
-beautifulsoup4 = "^4.9.3"
+beautifulsoup4 = "^4.12.3"
+click = ">=8.1.7,<8.2"
+MarkupSafe = "<3.0.3"
 
-[tool.poetry.dev-dependencies]
-black = "^20.8b1"
-python-language-server = "^0.36.2"
-pyls-mypy = "^0.1.8"
-pynvim = "^0.4.2"
+[tool.poetry.group.dev.dependencies]
+black = "^24.10.0"
+python-lsp-server = "^1.11.0"
+pylsp-mypy = "^0.6.8"
 epc = "^0.0.5"
-importmagic = "^0.1.7"
-isort = "^5.7.0"
-pyls-isort = "^0.2.0"
-pyls-black = "^0.4.6"
+isort = "^5.13.2"
+python-lsp-black = "^2.0.0"
+python-lsp-isort = "^0.2.0"
 
 [tool.poetry.scripts]
-backend_run = 'webrankit.app:main'
+backend = 'webrankit.cli:main'
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

@@ -1,64 +1,75 @@
-from flask import jsonify
-from playhouse.shortcuts import model_to_dict
-from flask_restful import Resource, reqparse
-from model import User
-from flask_jwt_extended import jwt_required, current_user
+from __future__ import annotations
+
+from typing import Any, Dict, List
+
+from flask import jsonify, request
+from flask_restful import Resource
+
+from ..model import User
 from .auth import admin_required
+
+
+def _serialize_user(user: User) -> Dict[str, Any]:
+    return {"id": str(user.id), "email": user.email}
+
 
 class UserResource(Resource):
     @admin_required
-    def get(self, uid):
-        usr = User.get_or_none(id=uid)
-        if usr is not None:
-            return model_to_dict(usr)
-        return {'message': f'User `{uid}` not found'}, 404
+    def get(self, uid: str):
+        user = User.get_or_none(User.id == uid)
+        if user is None:
+            return {"message": f"User `{uid}` not found"}, 404
+        return jsonify(user=_serialize_user(user))
 
     @admin_required
-    def delete(self, uid):
-        query = User.delete(id=uid)
-        deleted_rows = query.execute()
-        return jsonify(message=f'Deleted ({deleted_rows}) users')
+    def delete(self, uid: str):
+        deleted_rows = User.delete().where(User.id == uid).execute()
+        return jsonify(message=f"Deleted {deleted_rows} user(s).")
 
     @admin_required
-    def put(self, uid):
-        usr = User.get_or_none(id=uid)
-        if usr is None:
-            return {'message': f'User `{uid}` not found'}, 404
-        parser = reqparse.RequestParser(trim=True)
-        parser.add_argument('email')
-        parser.add_argument('password')
-        args = parser.parse_args()
-        if 'email' in args:
-            usr.email = args['email']
-        if 'password' in args:
-            usr.set_password_hash(args['password'])
-        usr.save()
-        return model_to_dict(usr)
+    def put(self, uid: str):
+        user = User.get_or_none(User.id == uid)
+        if user is None:
+            return {"message": f"User `{uid}` not found"}, 404
+
+        payload = request.get_json(silent=True) or {}
+        email = payload.get("email")
+        password = payload.get("password")
+
+        if email:
+            user.email = email
+        if password:
+            user.set_password_hash(password)
+
+        user.save()
+        return jsonify(user=_serialize_user(user))
 
 
 class UserCollectionResource(Resource):
-    #@admin_required
     def post(self):
-        parser = reqparse.RequestParser(trim=True, bundle_errors=True)
-        parser.add_argument('email', help = 'This field cannot be blank', required = True)
-        parser.add_argument('password', help = 'This field cannot be blank', required = True)
-        data = parser.parse_args()
-        if User.get_or_none(email = data['email']) is not None:
-            return {'message': f"User '{data['email']}' already exists."}, 409
-        usr = User.create(email = data['email'])
-        usr.set_password_hash(data['password'])
-        usr.save()
-        return jsonify(message=f'User {usr.email} was created, id={usr.id}')
+        payload = request.get_json(silent=True) or {}
+        email = (payload.get("email") or "").strip()
+        password = payload.get("password")
+        if not email or not password:
+            return {"message": "Email and password are required."}, 400
+
+        if User.get_or_none(User.email == email):
+            return {"message": f"User `{email}` already exists."}, 409
+
+        user = User.create(email=email)
+        user.set_password_hash(password)
+        user.save()
+        return jsonify(message=f"User {user.email} created.", user=_serialize_user(user))
 
     @admin_required
     def get(self):
-        users = User.select()
-        user_dicts = list(users.dicts())
-        return jsonify(users=user_dicts)
+        users = [_serialize_user(user) for user in User.select()]
+        return jsonify(users=users)
 
     @admin_required
     def delete(self):
-        query = User.delete()
-        deleted_rows = query.execute()
-        return jsonify(message=f'Deleted all ({deleted_rows}) users')
+        deleted_rows = User.delete().execute()
+        return jsonify(message=f"Deleted {deleted_rows} user(s).")
 
+
+__all__ = ["UserResource", "UserCollectionResource"]

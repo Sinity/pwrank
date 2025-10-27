@@ -1,9 +1,19 @@
-import uuid
-from peewee import *
-from app import db_wrapper
+from __future__ import annotations
 
-class BaseModel(db_wrapper.Model):
-    pass
+import uuid
+
+from peewee import BinaryUUIDField, Model
+
+from ..database import db_proxy
+
+
+class BaseModel(Model):
+    class Meta:
+        database = db_proxy
+
 
 class UUIDModel(BaseModel):
     id = BinaryUUIDField(primary_key=True, default=uuid.uuid4)
+
+
+__all__ = ["BaseModel", "UUIDModel"]

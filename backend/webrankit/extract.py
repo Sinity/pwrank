@@ -1,10 +1,19 @@
-import requests
+from __future__ import annotations
+
 import json
 import re
+from typing import Dict, List, Sequence
+
+import requests
 from bs4 import BeautifulSoup
 
-def extract_items_from_anilist(username, statuses):
-    query = ''' query ($username: String, $statuses: [MediaListStatus]) {
+DEFAULT_TIMEOUT = (3.05, 10)  # (connect, read) seconds
+SESSION = requests.Session()
+
+
+def extract_items_from_anilist(username: str, statuses: Sequence[str]) -> List[Dict]:
+    query = """
+    query ($username: String, $statuses: [MediaListStatus]) {
       MediaListCollection(userName: $username, status_in: $statuses, type: ANIME) {
         lists {
           status
@@ -12,53 +21,66 @@ def extract_items_from_anilist(username, statuses):
             id
             score
             media {
-              title {
-                userPreferred
-              }
-              coverImage {
-                extraLarge
-                color
-              }
+              title { userPreferred }
+              coverImage { extraLarge color }
             }
           }
         }
       }
-    } '''
+    }
+    """
 
     variables = {
-        'username': username,
-        'statuses': statuses # [CURRENT,PLANNING,PAUSED,COMPLETED,DROPPED,REPEATING]
+        "username": username,
+        "statuses": list(statuses),
     }
-    url = 'https://graphql.anilist.co'
+    url = "https://graphql.anilist.co"
 
-    response = requests.post(url, json={'query': query, 'variables': variables})
-    if not response.status_code == 200:
-        return {} 
-        
-    medialists = response.json()['data']['MediaListCollection']['lists']
-    medialist_entries = [medialist['entries'] for medialist in medialists]
-    entries = [item for sublist in medialist_entries for item in sublist]
+    try:
+        response = SESSION.post(
+            url, json={"query": query, "variables": variables}, timeout=DEFAULT_TIMEOUT
+        )
+        response.raise_for_status()
+    except requests.RequestException:
+        return []
+
+    data = response.json()
+    lists = data.get("data", {}).get("MediaListCollection", {}).get("lists", [])
+    entries = [entry for medialist in lists for entry in medialist.get("entries", [])]
     return entries
 
-def extract_items_from_steam(steam_id):
-    url = f'https://steamcommunity.com/id/{steam_id}/games/?tab=all&sort=playtime'
-    response = requests.get(url)
-    soup = BeautifulSoup(response.content, 'html.parser')
-    p = re.compile(r'var rgGames = (.*);')
-    tmp = ''
-    for script in soup.find_all('script'):
-        if script:
-            m = p.search(str(script))
-            if m is not None:
-                tmp = m.group(1)
-                break
-    apps = json.loads(tmp)
-    result = [] 
-    for app in apps:
-        result.append({
-            'label': app['name'],
-            'img_url': app['logo'].replace('capsule_184x69', 'header')
-        })
-    return result
-    
 
+def extract_items_from_steam(steam_id: str) -> List[Dict[str, str]]:
+    url = f"https://steamcommunity.com/id/{steam_id}/games/?tab=all&sort=playtime"
+    try:
+        response = SESSION.get(url, timeout=DEFAULT_TIMEOUT)
+        response.raise_for_status()
+    except requests.RequestException:
+        return []
+
+    soup = BeautifulSoup(response.content, "html.parser")
+    script_pattern = re.compile(r"var rgGames = (.*);")
+    games_payload = ""
+
+    for script in soup.find_all("script"):
+        match = script_pattern.search(str(script))
+        if match:
+            games_payload = match.group(1)
+            break
+
+    if not games_payload:
+        return []
+
+    apps = json.loads(games_payload)
+    result: List[Dict[str, str]] = []
+    for app in apps:
+        result.append(
+            {
+                "label": app["name"],
+                "img_url": app["logo"].replace("capsule_184x69", "header"),
+            }
+        )
+    return result
+
+
+__all__ = ["extract_items_from_anilist", "extract_items_from_steam"]

@@ -1,27 +1,43 @@
-from app import jwt
-from flask import jsonify
-from playhouse.shortcuts import model_to_dict
-from flask_restful import Resource, reqparse
-from model import User
-from flask_jwt_extended import create_access_token, create_refresh_token, jwt_required, current_user
+from __future__ import annotations
+
+from functools import wraps
+from typing import Any, Callable, Dict
 from uuid import UUID
 
+from flask import jsonify, request
+from flask_jwt_extended import (
+    create_access_token,
+    create_refresh_token,
+    current_user,
+    jwt_required,
+)
+from flask_restful import Resource
+
+from ..extensions import jwt
+from ..model import User
+
+
 @jwt.user_identity_loader
-def user_identity_lookup(user_model_instance):
-    return user_model_instance.id
+def user_identity_lookup(user: User) -> str:
+    return str(user.id)
+
 
 @jwt.user_lookup_loader
-def user_lookup_callback(_jwt_header, jwt_data):
+def user_lookup_callback(_jwt_header: Dict[str, Any], jwt_data: Dict[str, Any]) -> User | None:
     user_id_from_token = jwt_data["sub"]
     return User.get_or_none(id=UUID(user_id_from_token))
 
-def admin_required(func):
+
+def admin_required(func: Callable[..., Any]) -> Callable[..., Any]:
+    @wraps(func)
     @jwt_required()
-    def wrapper(*args, **kwargs):
+    def wrapper(*args: Any, **kwargs: Any):
         if not current_user.is_admin():
-            return {'message': 'Access denied, admin only'}, 403
+            return {"message": "Access denied, admin only"}, 403
         return func(*args, **kwargs)
+
     return wrapper
+
 
 class AuthResource(Resource):
     @jwt_required(refresh=True)
@@ -30,17 +46,20 @@ class AuthResource(Resource):
         return jsonify(access_token=token)
 
     def post(self):
-        parser = reqparse.RequestParser(trim=True, bundle_errors=True)
-        parser.add_argument('email', help = 'This field cannot be blank', required = True)
-        parser.add_argument('password', help = 'This field cannot be blank', required = True)
-        data = parser.parse_args()
-        user = User.get_or_none(email = data['email'])
-        if user is None:
-            return {'message': 'Auth failed; no such user.'}, 401
-        if not user.verify_password(data['password']):
-            return {'message': 'Auth failed; password mismatch.'}, 401
-        atoken = create_access_token(identity=user)
-        rtoken = create_refresh_token(identity=user)
-        identity = {'email': user.email, 'id': user.id}
-        return jsonify(identity=identity, access_token=atoken, refresh_token=rtoken)
+        payload = request.get_json(silent=True) or {}
+        email = (payload.get("email") or "").strip()
+        password = payload.get("password") or ""
+        if not email or not password:
+            return {"message": "Email and password are required."}, 400
 
+        user = User.get_or_none(email=email)
+        if user is None or not user.verify_password(password):
+            return {"message": "Authentication failed."}, 401
+
+        access_token = create_access_token(identity=user)
+        refresh_token = create_refresh_token(identity=user)
+        identity = {"email": user.email, "id": str(user.id)}
+        return jsonify(identity=identity, access_token=access_token, refresh_token=refresh_token)
+
+
+__all__ = ["AuthResource", "admin_required"]
