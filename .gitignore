@@ -9,3 +9,22 @@ node_modules/
 db
 data/
 
+# Nix/devenv
+.direnv/
+.devenv/
+
+# Python virtual environments
+.venv/
+venv/
+env/
+
+# uv
+.python-version
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
