@@ -17,11 +17,25 @@
       </div>
       <div class="ranking-page__actions">
         <Button
+          v-if="selectedItems.length > 0"
+          icon="pi pi-trash"
+          :label="`Delete Selected (${selectedItems.length})`"
+          class="p-button-danger"
+          @click="openBulkDeleteConfirmDialog"
+        />
+        <Button
           icon="pi pi-download"
           label="Export CSV"
           class="p-button-secondary"
           @click="exportToCSV"
           :disabled="!ranking || items.length === 0"
+        />
+        <Button
+          icon="pi pi-plus"
+          label="Add Item"
+          class="p-button-secondary"
+          @click="openAddItemDialog"
+          :disabled="!ranking"
         />
         <Button
           icon="pi pi-sync"
@@ -92,6 +106,180 @@
       </template>
     </Dialog>
 
+    <!-- Add Item Dialog -->
+    <Dialog
+      v-model:visible="displayAddItemModal"
+      header="Add New Item"
+      :style="{ width: '50vw' }"
+      :modal="true"
+    >
+      <div class="flex flex-column gap-3">
+        <div class="flex flex-column gap-2">
+          <label for="item_label">Label *</label>
+          <InputText
+            id="item_label"
+            v-model="itemForm.label"
+            type="text"
+            placeholder="Item name"
+            maxlength="200"
+          />
+        </div>
+        <div class="flex flex-column gap-2">
+          <label for="item_img_url">Image URL</label>
+          <InputText
+            id="item_img_url"
+            v-model="itemForm.img_url"
+            type="text"
+            placeholder="https://example.com/image.jpg"
+            maxlength="500"
+          />
+        </div>
+        <div class="flex flex-column gap-2">
+          <label for="item_init_rating">Initial Rating (0-10)</label>
+          <InputNumber
+            id="item_init_rating"
+            v-model="itemForm.init_rating"
+            :min="0"
+            :max="10"
+            :step="1"
+          />
+        </div>
+      </div>
+
+      <template #footer>
+        <Button
+          label="Cancel"
+          icon="pi pi-times"
+          class="p-button-text"
+          @click="displayAddItemModal = false"
+        />
+        <Button
+          label="Add"
+          icon="pi pi-check"
+          @click="addItem"
+          :loading="submitting"
+          autofocus
+        />
+      </template>
+    </Dialog>
+
+    <!-- Edit Item Dialog -->
+    <Dialog
+      v-model:visible="displayEditItemModal"
+      header="Edit Item"
+      :style="{ width: '50vw' }"
+      :modal="true"
+    >
+      <div class="flex flex-column gap-3">
+        <div class="flex flex-column gap-2">
+          <label for="edit_item_label">Label *</label>
+          <InputText
+            id="edit_item_label"
+            v-model="editItemForm.label"
+            type="text"
+            placeholder="Item name"
+            maxlength="200"
+          />
+        </div>
+        <div class="flex flex-column gap-2">
+          <label for="edit_item_img_url">Image URL</label>
+          <InputText
+            id="edit_item_img_url"
+            v-model="editItemForm.img_url"
+            type="text"
+            placeholder="https://example.com/image.jpg"
+            maxlength="500"
+          />
+        </div>
+        <div class="flex flex-column gap-2">
+          <label for="edit_item_init_rating">Initial Rating (0-10)</label>
+          <InputNumber
+            id="edit_item_init_rating"
+            v-model="editItemForm.init_rating"
+            :min="0"
+            :max="10"
+            :step="1"
+          />
+        </div>
+      </div>
+
+      <template #footer>
+        <Button
+          label="Cancel"
+          icon="pi pi-times"
+          class="p-button-text"
+          @click="displayEditItemModal = false"
+        />
+        <Button
+          label="Save"
+          icon="pi pi-check"
+          @click="updateItem"
+          :loading="submitting"
+          autofocus
+        />
+      </template>
+    </Dialog>
+
+    <!-- Delete Confirmation Dialog -->
+    <Dialog
+      v-model:visible="displayDeleteConfirmModal"
+      header="Confirm Delete"
+      :style="{ width: '30vw' }"
+      :modal="true"
+    >
+      <p>Are you sure you want to delete "<strong>{{ itemToDelete?.label }}</strong>"?</p>
+      <p style="color: var(--text-color-secondary); font-size: 0.9rem;">
+        This will also delete all comparisons involving this item.
+      </p>
+
+      <template #footer>
+        <Button
+          label="Cancel"
+          icon="pi pi-times"
+          class="p-button-text"
+          @click="displayDeleteConfirmModal = false"
+        />
+        <Button
+          label="Delete"
+          icon="pi pi-trash"
+          class="p-button-danger"
+          @click="deleteItem"
+          :loading="submitting"
+          autofocus
+        />
+      </template>
+    </Dialog>
+
+    <!-- Bulk Delete Confirmation Dialog -->
+    <Dialog
+      v-model:visible="displayBulkDeleteConfirmModal"
+      header="Confirm Bulk Delete"
+      :style="{ width: '30vw' }"
+      :modal="true"
+    >
+      <p>Are you sure you want to delete <strong>{{ selectedItems.length }}</strong> selected items?</p>
+      <p style="color: var(--text-color-secondary); font-size: 0.9rem;">
+        This will also delete all comparisons involving these items. This action cannot be undone.
+      </p>
+
+      <template #footer>
+        <Button
+          label="Cancel"
+          icon="pi pi-times"
+          class="p-button-text"
+          @click="displayBulkDeleteConfirmModal = false"
+        />
+        <Button
+          label="Delete All"
+          icon="pi pi-trash"
+          class="p-button-danger"
+          @click="bulkDeleteItems"
+          :loading="submitting"
+          autofocus
+        />
+      </template>
+    </Dialog>
+
     <!-- Empty State -->
     <div v-if="!loading && items.length === 0" class="empty-state">
       <i class="pi pi-inbox" style="font-size: 4rem; color: var(--text-color-secondary)"></i>
@@ -105,8 +293,17 @@
       />
     </div>
 
+    <!-- Loading Skeleton -->
+    <div v-if="loading && !ranking" class="skeleton-container">
+      <Skeleton height="3rem" class="mb-2" />
+      <Skeleton height="2rem" width="60%" class="mb-4" />
+      <div class="skeleton-table">
+        <Skeleton v-for="i in 5" :key="i" height="4rem" class="mb-2" />
+      </div>
+    </div>
+
     <!-- Search and Filter -->
-    <div v-if="items.length > 0" class="search-controls">
+    <div v-if="!loading && items.length > 0" class="search-controls">
       <span class="p-input-icon-left" style="flex: 1; max-width: 400px;">
         <i class="pi pi-search" />
         <InputText
@@ -126,15 +323,17 @@
     </div>
 
     <DataTable
-      v-if="items.length > 0"
+      v-if="!loading && items.length > 0"
       :value="filteredItems"
-      :loading="loading"
+      v-model:selection="selectedItems"
       :paginator="filteredItems.length > 20"
       :rows="20"
       sortField="curr_rating"
       :sortOrder="-1"
       stripedRows
+      dataKey="id"
     >
+      <Column selectionMode="multiple" headerStyle="width: 3rem" :exportable="false"></Column>
       <Column field="img_url" header="Image">
         <template #body="{ data }">
           <img :src="data.img_url" :alt="data.label" width="80" />
@@ -193,6 +392,24 @@
           <span v-else style="color: var(--text-color-secondary)">-</span>
         </template>
       </Column>
+      <Column header="Actions" :exportable="false" style="width: 150px">
+        <template #body="{ data }">
+          <div style="display: flex; gap: 0.5rem;">
+            <Button
+              icon="pi pi-pencil"
+              class="p-button-sm p-button-text"
+              @click="openEditItemDialog(data)"
+              v-tooltip.top="'Edit item'"
+            />
+            <Button
+              icon="pi pi-trash"
+              class="p-button-sm p-button-text p-button-danger"
+              @click="openDeleteConfirmDialog(data)"
+              v-tooltip.top="'Delete item'"
+            />
+          </div>
+        </template>
+      </Column>
     </DataTable>
   </div>
 </template>
@@ -213,6 +430,8 @@ const items = ref([]);
 const rankingId = ref(route.params.id);
 const loading = ref(false);
 const syncing = ref(false);
+const submitting = ref(false);
+const selectedItems = ref([]);
 
 const searchQuery = ref("");
 const filterBy = ref("all");
@@ -259,6 +478,14 @@ const displaySyncModal = ref(false);
 const steamId = ref("");
 const anilistUsername = ref("");
 const anilistStatuses = ref([]);
+
+const displayAddItemModal = ref(false);
+const displayEditItemModal = ref(false);
+const displayDeleteConfirmModal = ref(false);
+const displayBulkDeleteConfirmModal = ref(false);
+const itemForm = ref({ label: "", img_url: "", init_rating: 5 });
+const editItemForm = ref({ id: "", label: "", img_url: "", init_rating: 5 });
+const itemToDelete = ref(null);
 
 const anilistStatusOptions = [
   { label: "Current", value: "CURRENT" },
@@ -401,6 +628,204 @@ async function syncItems() {
   }
 }
 
+function openAddItemDialog() {
+  itemForm.value = { label: "", img_url: "", init_rating: 5 };
+  displayAddItemModal.value = true;
+}
+
+function openEditItemDialog(item) {
+  editItemForm.value = {
+    id: item.id,
+    label: item.label,
+    img_url: item.img_url || "",
+    init_rating: item.init_rating || 5,
+  };
+  displayEditItemModal.value = true;
+}
+
+function openDeleteConfirmDialog(item) {
+  itemToDelete.value = item;
+  displayDeleteConfirmModal.value = true;
+}
+
+async function addItem() {
+  if (!itemForm.value.label.trim()) {
+    toast.add({
+      severity: "error",
+      summary: "Validation Error",
+      detail: "Item label is required.",
+      life: 3000,
+    });
+    return;
+  }
+
+  submitting.value = true;
+  try {
+    await REST.post(`/ranking/${rankingId.value}/items`, {
+      label: itemForm.value.label.trim(),
+      img_url: itemForm.value.img_url.trim(),
+      init_rating: itemForm.value.init_rating,
+    });
+
+    toast.add({
+      severity: "success",
+      summary: "Item Added",
+      detail: `"${itemForm.value.label}" has been added to the ranking.`,
+      life: 3000,
+    });
+
+    displayAddItemModal.value = false;
+    await loadRanking();
+  } catch (error) {
+    toast.add({
+      severity: "error",
+      summary: "Failed to add item",
+      detail:
+        error instanceof HttpError
+          ? error.payload?.message || "Unexpected backend response."
+          : "Unable to reach the backend.",
+      life: 4000,
+    });
+  } finally {
+    submitting.value = false;
+  }
+}
+
+async function updateItem() {
+  if (!editItemForm.value.label.trim()) {
+    toast.add({
+      severity: "error",
+      summary: "Validation Error",
+      detail: "Item label is required.",
+      life: 3000,
+    });
+    return;
+  }
+
+  submitting.value = true;
+  try {
+    await REST.put(`/item/${editItemForm.value.id}`, {
+      label: editItemForm.value.label.trim(),
+      img_url: editItemForm.value.img_url.trim(),
+      init_rating: editItemForm.value.init_rating,
+    });
+
+    toast.add({
+      severity: "success",
+      summary: "Item Updated",
+      detail: `"${editItemForm.value.label}" has been updated.`,
+      life: 3000,
+    });
+
+    displayEditItemModal.value = false;
+    await loadRanking();
+  } catch (error) {
+    toast.add({
+      severity: "error",
+      summary: "Failed to update item",
+      detail:
+        error instanceof HttpError
+          ? error.payload?.message || "Unexpected backend response."
+          : "Unable to reach the backend.",
+      life: 4000,
+    });
+  } finally {
+    submitting.value = false;
+  }
+}
+
+async function deleteItem() {
+  if (!itemToDelete.value) return;
+
+  submitting.value = true;
+  try {
+    await REST.delete(`/item/${itemToDelete.value.id}`);
+
+    toast.add({
+      severity: "success",
+      summary: "Item Deleted",
+      detail: `"${itemToDelete.value.label}" has been deleted.`,
+      life: 3000,
+    });
+
+    displayDeleteConfirmModal.value = false;
+    itemToDelete.value = null;
+    await loadRanking();
+  } catch (error) {
+    toast.add({
+      severity: "error",
+      summary: "Failed to delete item",
+      detail:
+        error instanceof HttpError
+          ? error.payload?.message || "Unexpected backend response."
+          : "Unable to reach the backend.",
+      life: 4000,
+    });
+  } finally {
+    submitting.value = false;
+  }
+}
+
+function openBulkDeleteConfirmDialog() {
+  displayBulkDeleteConfirmModal.value = true;
+}
+
+async function bulkDeleteItems() {
+  if (selectedItems.value.length === 0) return;
+
+  submitting.value = true;
+  let successCount = 0;
+  let errorCount = 0;
+
+  try {
+    // Delete all selected items
+    for (const item of selectedItems.value) {
+      try {
+        await REST.delete(`/item/${item.id}`);
+        successCount++;
+      } catch (error) {
+        errorCount++;
+        console.error(`Failed to delete item ${item.id}:`, error);
+      }
+    }
+
+    // Show result toast
+    if (successCount > 0) {
+      toast.add({
+        severity: errorCount > 0 ? "warn" : "success",
+        summary: `Deleted ${successCount} items`,
+        detail: errorCount > 0 ? `${errorCount} items failed to delete` : "",
+        life: 3000,
+      });
+    }
+
+    if (errorCount > 0 && successCount === 0) {
+      toast.add({
+        severity: "error",
+        summary: "Failed to delete items",
+        detail: "All deletions failed. Please try again.",
+        life: 4000,
+      });
+    }
+
+    displayBulkDeleteConfirmModal.value = false;
+    selectedItems.value = [];
+    await loadRanking();
+  } catch (error) {
+    toast.add({
+      severity: "error",
+      summary: "Failed to delete items",
+      detail:
+        error instanceof HttpError
+          ? error.payload?.message || "Unexpected backend response."
+          : "Unable to reach the backend.",
+      life: 4000,
+    });
+  } finally {
+    submitting.value = false;
+  }
+}
+
 onMounted(loadRanking);
 </script>
 
@@ -467,5 +892,23 @@ onMounted(loadRanking);
   border-radius: 4px;
   transition: width 0.3s ease;
   max-width: 100px;
+}
+
+.skeleton-container {
+  padding: 2rem 0;
+}
+
+.skeleton-table {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.mb-2 {
+  margin-bottom: 0.5rem;
+}
+
+.mb-4 {
+  margin-bottom: 1rem;
 }
 </style>

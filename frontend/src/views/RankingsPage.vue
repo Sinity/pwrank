@@ -63,8 +63,17 @@
     </Dialog>
 
     <div class="card">
+      <!-- Loading Skeleton -->
+      <div v-if="loading" class="skeleton-grid">
+        <div v-for="i in 6" :key="i" class="skeleton-card">
+          <Skeleton height="200px" class="mb-3" />
+          <Skeleton height="1.5rem" width="70%" class="mb-2" />
+          <Skeleton height="1rem" width="50%" />
+        </div>
+      </div>
+
       <!-- Empty State -->
-      <div v-if="!loading && rankings.length === 0" class="empty-state">
+      <div v-else-if="!loading && rankings.length === 0" class="empty-state">
         <i class="pi pi-star" style="font-size: 4rem; color: var(--text-color-secondary)"></i>
         <h2>No Rankings Yet</h2>
         <p>Create your first ranking to start comparing items!</p>
@@ -77,14 +86,13 @@
       </div>
 
       <DataView
-        v-if="rankings.length > 0"
+        v-else-if="rankings.length > 0"
         :value="rankings"
         :layout="layout"
         :paginator="true"
         :rows="9"
         :sortOrder="sortOrder"
         :sortField="sortField"
-        :loading="loading"
       >
         <template #header>
           <div class="flex flex-wrap align-items-center justify-content-between gap-3">
@@ -544,5 +552,26 @@ onMounted(refreshRankings);
       width: 100%;
     }
   }
+}
+
+.skeleton-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1.5rem;
+  padding: 1rem 0;
+}
+
+.skeleton-card {
+  padding: 1rem;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+}
+
+.mb-2 {
+  margin-bottom: 0.5rem;
+}
+
+.mb-3 {
+  margin-bottom: 1rem;
 }
 </style>
