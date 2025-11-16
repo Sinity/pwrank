@@ -9,19 +9,32 @@
       :modal="true"
     >
       <div class="flex flex-column gap-3">
-        <InputText
-          v-model="name"
-          id="name"
-          type="text"
-          placeholder="Name"
-        />
-        <Dropdown
-          v-model="datasource"
-          :options="datasourceOptions"
-          optionLabel="label"
-          optionValue="value"
-          placeholder="Datasource"
-        />
+        <div class="flex flex-column gap-2">
+          <label for="name">Ranking Name *</label>
+          <InputText
+            v-model="name"
+            id="name"
+            type="text"
+            placeholder="Enter ranking name"
+            aria-required="true"
+            aria-describedby="name_help"
+          />
+          <small id="name_help" class="help-text">A descriptive name for this ranking</small>
+        </div>
+        <div class="flex flex-column gap-2">
+          <label for="datasource">Data Source *</label>
+          <Dropdown
+            v-model="datasource"
+            id="datasource"
+            :options="datasourceOptions"
+            optionLabel="label"
+            optionValue="value"
+            placeholder="Select data source"
+            aria-required="true"
+            aria-describedby="datasource_help"
+          />
+          <small id="datasource_help" class="help-text">Where to sync items from (AniList for anime, Steam for games)</small>
+        </div>
       </div>
 
       <template #footer>
@@ -573,5 +586,12 @@ onMounted(refreshRankings);
 
 .mb-3 {
   margin-bottom: 1rem;
+}
+
+.help-text {
+  color: var(--text-color-secondary);
+  font-size: 0.875rem;
+  margin-top: 0.25rem;
+  display: block;
 }
 </style>

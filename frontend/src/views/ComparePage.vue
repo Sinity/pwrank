@@ -15,6 +15,11 @@
       />
     </div>
 
+    <div v-if="!message && items.length === 2" class="compare-hint">
+      <i class="pi pi-info-circle"></i>
+      <span>Click your preferred item or press <kbd>1</kbd> / <kbd>←</kbd> for left, <kbd>2</kbd> / <kbd>→</kbd> for right</span>
+    </div>
+
     <p v-if="message" class="compare-page__message">{{ message }}</p>
 
     <div v-if="!message" class="compare-page__grid">
@@ -191,5 +196,31 @@ onUnmounted(() => {
   font-size: 0.8em;
   color: var(--primary-color);
   font-weight: normal;
+}
+
+.compare-hint {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  background-color: rgba(var(--primary-color-rgb, 59, 130, 246), 0.1);
+  border-left: 4px solid var(--primary-color);
+  border-radius: 4px;
+  color: var(--text-color);
+  font-size: 0.95rem;
+}
+
+.compare-hint i {
+  color: var(--primary-color);
+  font-size: 1.25rem;
+}
+
+.compare-hint kbd {
+  padding: 0.2rem 0.4rem;
+  border-radius: 3px;
+  background-color: var(--surface-100);
+  border: 1px solid var(--surface-300);
+  font-family: monospace;
+  font-size: 0.9em;
 }
 </style>

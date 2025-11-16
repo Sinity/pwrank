@@ -29,6 +29,7 @@
           class="p-button-secondary"
           @click="exportToCSV"
           :disabled="!ranking || items.length === 0"
+          v-tooltip.top="items.length === 0 ? 'No items to export' : 'Export ranking to CSV file'"
         />
         <Button
           icon="pi pi-plus"
@@ -36,12 +37,14 @@
           class="p-button-secondary"
           @click="openAddItemDialog"
           :disabled="!ranking"
+          v-tooltip.top="'Add a new item manually'"
         />
         <Button
           icon="pi pi-sync"
           label="Sync items"
           @click="openSyncDialog"
           :disabled="!ranking"
+          v-tooltip.top="'Import items from external source'"
         />
         <Button
           icon="pi pi-arrow-right"
@@ -49,6 +52,7 @@
           class="p-button-success"
           @click="router.push({ name: 'Comparing', params: { id: rankingId } })"
           :disabled="!ranking || items.length < 2"
+          v-tooltip.top="items.length < 2 ? 'Need at least 2 items to compare' : 'Start comparing items'"
         />
       </div>
     </header>
@@ -120,19 +124,24 @@
             id="item_label"
             v-model="itemForm.label"
             type="text"
-            placeholder="Item name"
+            placeholder="Enter item name (max 200 characters)"
             maxlength="200"
+            aria-required="true"
+            aria-describedby="item_label_help"
           />
+          <small id="item_label_help" class="help-text">The display name for this item</small>
         </div>
         <div class="flex flex-column gap-2">
-          <label for="item_img_url">Image URL</label>
+          <label for="item_img_url">Image URL (optional)</label>
           <InputText
             id="item_img_url"
             v-model="itemForm.img_url"
             type="text"
             placeholder="https://example.com/image.jpg"
             maxlength="500"
+            aria-describedby="item_img_url_help"
           />
+          <small id="item_img_url_help" class="help-text">URL to an image representing this item</small>
         </div>
         <div class="flex flex-column gap-2">
           <label for="item_init_rating">Initial Rating (0-10)</label>
@@ -142,7 +151,9 @@
             :min="0"
             :max="10"
             :step="1"
+            aria-describedby="item_init_rating_help"
           />
+          <small id="item_init_rating_help" class="help-text">Starting rating before comparisons (0 = lowest, 10 = highest)</small>
         </div>
       </div>
 
@@ -177,19 +188,24 @@
             id="edit_item_label"
             v-model="editItemForm.label"
             type="text"
-            placeholder="Item name"
+            placeholder="Enter item name (max 200 characters)"
             maxlength="200"
+            aria-required="true"
+            aria-describedby="edit_item_label_help"
           />
+          <small id="edit_item_label_help" class="help-text">The display name for this item</small>
         </div>
         <div class="flex flex-column gap-2">
-          <label for="edit_item_img_url">Image URL</label>
+          <label for="edit_item_img_url">Image URL (optional)</label>
           <InputText
             id="edit_item_img_url"
             v-model="editItemForm.img_url"
             type="text"
             placeholder="https://example.com/image.jpg"
             maxlength="500"
+            aria-describedby="edit_item_img_url_help"
           />
+          <small id="edit_item_img_url_help" class="help-text">URL to an image representing this item</small>
         </div>
         <div class="flex flex-column gap-2">
           <label for="edit_item_init_rating">Initial Rating (0-10)</label>
@@ -199,7 +215,9 @@
             :min="0"
             :max="10"
             :step="1"
+            aria-describedby="edit_item_init_rating_help"
           />
+          <small id="edit_item_init_rating_help" class="help-text">Starting rating before comparisons (0 = lowest, 10 = highest)</small>
         </div>
       </div>
 
@@ -785,7 +803,7 @@ async function bulkDeleteItems() {
         successCount++;
       } catch (error) {
         errorCount++;
-        console.error(`Failed to delete item ${item.id}:`, error);
+        // Continue with other deletions despite failure
       }
     }
 
@@ -910,5 +928,12 @@ onMounted(loadRanking);
 
 .mb-4 {
   margin-bottom: 1rem;
+}
+
+.help-text {
+  color: var(--text-color-secondary);
+  font-size: 0.875rem;
+  margin-top: 0.25rem;
+  display: block;
 }
 </style>
