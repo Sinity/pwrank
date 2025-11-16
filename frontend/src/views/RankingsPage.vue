@@ -1,33 +1,27 @@
 <template>
   <div class="rankings-page">
+    <Toast />
+    <ConfirmDialog />
     <Dialog
       header="Create ranking"
       v-model:visible="displayCreateRankingModal"
       :style="{ width: '50vw' }"
       :modal="true"
     >
-      <div class="p-fluid">
-        <div class="p-field p-grid">
-          <div class="p-col-12 p-md-10">
-            <InputText
-              v-model="name"
-              id="name"
-              type="text"
-              placeholder="Name"
-            />
-          </div>
-        </div>
-        <div class="p-field p-grid">
-          <div class="p-col-12 p-md-10">
-            <Dropdown
-              v-model="datasource"
-              :options="datasourceOptions"
-              optionLabel="label"
-              optionValue="value"
-              placeholder="Datasource"
-            />
-          </div>
-        </div>
+      <div class="flex flex-column gap-3">
+        <InputText
+          v-model="name"
+          id="name"
+          type="text"
+          placeholder="Name"
+        />
+        <Dropdown
+          v-model="datasource"
+          :options="datasourceOptions"
+          optionLabel="label"
+          optionValue="value"
+          placeholder="Datasource"
+        />
       </div>
 
       <template #footer>
@@ -47,16 +41,14 @@
       :style="{ width: '50vw' }"
       :modal="true"
     >
-      <div class="p-formgroup-inline">
-        <div class="p-field">
-          <label for="edit-name" class="p-sr-only">Name</label>
-          <InputText
-            v-model="name"
-            id="edit-name"
-            type="text"
-            placeholder="Name"
-          />
-        </div>
+      <div class="flex flex-column gap-3">
+        <label for="edit-name" class="sr-only">Name</label>
+        <InputText
+          v-model="name"
+          id="edit-name"
+          type="text"
+          placeholder="Name"
+        />
       </div>
 
       <template #footer>
@@ -81,31 +73,25 @@
         :loading="loading"
       >
         <template #header>
-          <div class="p-grid p-nogutter">
-            <div class="p-col-12 p-md-3" style="text-align: left">
-              <Dropdown
-                v-model="sortKey"
-                :options="sortOptions"
-                optionLabel="label"
-                placeholder="Sort by"
-                @change="onSortChange"
-              />
-            </div>
-            <div class="p-col-12 p-md-6" style="text-align: center">
-              <Button
-                icon="pi pi-plus"
-                label="Create new"
-                @click="showCreateRanking"
-              />
-            </div>
-            <div class="p-col-12 p-md-3" style="text-align: right">
-              <DataViewLayoutOptions v-model="layout" />
-            </div>
+          <div class="flex flex-wrap align-items-center justify-content-between gap-3">
+            <Dropdown
+              v-model="sortKey"
+              :options="sortOptions"
+              optionLabel="label"
+              placeholder="Sort by"
+              @change="onSortChange"
+            />
+            <Button
+              icon="pi pi-plus"
+              label="Create new"
+              @click="showCreateRanking"
+            />
+            <DataViewLayoutOptions v-model="layout" />
           </div>
         </template>
 
         <template #list="{ data }">
-          <div class="p-col-12">
+          <div class="col-12">
             <div class="product-list-item">
               <img
                 :src="`${baseURL}${data.datasource}.png`"
@@ -148,7 +134,7 @@
         </template>
 
         <template #grid="{ data }">
-          <div class="p-col-12 p-md-4">
+          <div class="col-12 md:col-4">
             <div class="product-grid-item card">
               <div class="product-grid-item-top">
                 <div>
@@ -197,11 +183,13 @@
 import { onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import { useToast } from "primevue/usetoast";
+import { useConfirm } from "primevue/useconfirm";
 
 import { REST, HttpError } from "../rest";
 
 const router = useRouter();
 const toast = useToast();
+const confirm = useConfirm();
 
 const rankings = ref([]);
 const loading = ref(false);
@@ -331,26 +319,34 @@ async function modifyRanking() {
 }
 
 async function deleteRanking(id) {
-  try {
-    const data = await REST.del(`/ranking/${id}`);
-    toast.add({
-      severity: "success",
-      summary: "Ranking deleted",
-      detail: data.message ?? "",
-      life: 3000,
-    });
-    await refreshRankings();
-  } catch (error) {
-    toast.add({
-      severity: "error",
-      summary: "Failed to delete ranking",
-      detail:
-        error instanceof HttpError
-          ? error.payload?.message || "Unexpected backend response."
-          : "Unable to reach the backend.",
-      life: 4000,
-    });
-  }
+  confirm.require({
+    message: "Are you sure you want to delete this ranking? This action cannot be undone.",
+    header: "Confirm Deletion",
+    icon: "pi pi-exclamation-triangle",
+    acceptClass: "p-button-danger",
+    accept: async () => {
+      try {
+        const data = await REST.del(`/ranking/${id}`);
+        toast.add({
+          severity: "success",
+          summary: "Ranking deleted",
+          detail: data.message ?? "",
+          life: 3000,
+        });
+        await refreshRankings();
+      } catch (error) {
+        toast.add({
+          severity: "error",
+          summary: "Failed to delete ranking",
+          detail:
+            error instanceof HttpError
+              ? error.payload?.message || "Unexpected backend response."
+              : "Unable to reach the backend.",
+          life: 4000,
+        });
+      }
+    },
+  });
 }
 
 function onSortChange(event) {

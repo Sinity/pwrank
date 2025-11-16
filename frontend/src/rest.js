@@ -1,7 +1,7 @@
 const STORAGE_KEY = "pwrank.auth";
 
 const API_BASE_URL =
-  (typeof process !== "undefined" && process.env?.VUE_APP_API_BASE_URL) ||
+  import.meta.env?.VUE_APP_API_BASE_URL ||
   "http://localhost:5000";
 
 class HttpError extends Error {
@@ -16,6 +16,7 @@ class HttpError extends Error {
 class RestClient {
   constructor(baseUrl) {
     this.baseUrl = baseUrl.replace(/\/$/, "");
+    this._refreshing = false;
   }
 
   get auth() {
@@ -68,10 +69,11 @@ class RestClient {
 
   async refreshToken() {
     const auth = this.auth;
-    if (!auth?.refreshToken) {
+    if (!auth?.refreshToken || this._refreshing) {
       return false;
     }
 
+    this._refreshing = true;
     try {
       const data = await this._fetchJson("/auth", {
         method: "GET",
@@ -86,6 +88,8 @@ class RestClient {
     } catch (error) {
       this.logout();
       return false;
+    } finally {
+      this._refreshing = false;
     }
   }
 

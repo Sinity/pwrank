@@ -6,7 +6,7 @@
       <h2>Welcome back</h2>
       <p class="auth-description">Sign in or create a new pwRank account.</p>
 
-      <div class="auth-form">
+      <div class="auth-form" @keyup.enter="login">
         <span class="p-input-icon-left">
           <i class="pi pi-envelope" />
           <InputText
@@ -16,16 +16,14 @@
             placeholder="Email"
           />
         </span>
-        <span class="p-input-icon-left">
-          <i class="pi pi-lock" />
-          <InputText
-            v-model="password"
-            id="password"
-            type="password"
-            placeholder="Password"
-            autocomplete="current-password"
-          />
-        </span>
+        <Password
+          v-model="password"
+          id="password"
+          placeholder="Password"
+          :toggleMask="true"
+          :feedback="false"
+          autocomplete="current-password"
+        />
       </div>
 
       <div class="auth-actions">
@@ -42,7 +40,7 @@
     <section v-else class="auth-card">
       <h2>Signed in as {{ user.identity.email }}</h2>
       <p class="auth-description">
-        Use the shortcuts below to manage your session.
+        You are successfully authenticated.
       </p>
 
       <div class="auth-actions">
@@ -58,21 +56,6 @@
           class="p-button-danger"
           @click="logout"
         />
-      </div>
-
-      <div class="auth-tokens">
-        <p>
-          <strong>User id:</strong>
-          <code>{{ user.identity.id }}</code>
-        </p>
-        <p>
-          <strong>Access token:</strong>
-          <code>{{ user.accessToken }}</code>
-        </p>
-        <p>
-          <strong>Refresh token:</strong>
-          <code>{{ user.refreshToken }}</code>
-        </p>
       </div>
     </section>
   </div>
@@ -105,6 +88,28 @@ function notify({ severity, summary, detail, life = 3000 }) {
 }
 
 async function login() {
+  // Basic email validation
+  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailPattern.test(email.value)) {
+    notify({
+      severity: "error",
+      summary: "Invalid email",
+      detail: "Please enter a valid email address.",
+      life: 4000,
+    });
+    return;
+  }
+
+  if (!password.value || password.value.length < 1) {
+    notify({
+      severity: "error",
+      summary: "Invalid password",
+      detail: "Please enter a password.",
+      life: 4000,
+    });
+    return;
+  }
+
   const result = await REST.login(email.value, password.value);
   if (!result.ok) {
     notify({
@@ -127,6 +132,29 @@ async function login() {
 }
 
 async function register() {
+  // Email validation
+  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailPattern.test(email.value)) {
+    notify({
+      severity: "error",
+      summary: "Invalid email",
+      detail: "Please enter a valid email address.",
+      life: 4000,
+    });
+    return;
+  }
+
+  // Password validation
+  if (!password.value || password.value.length < 8) {
+    notify({
+      severity: "error",
+      summary: "Invalid password",
+      detail: "Password must be at least 8 characters long.",
+      life: 4000,
+    });
+    return;
+  }
+
   try {
     const data = await REST.post("/auth/user", {
       email: email.value,
@@ -212,22 +240,5 @@ onMounted(() => {
 .auth-actions .p-button {
   flex: 1 1 45%;
   min-width: 9rem;
-}
-
-.auth-tokens {
-  display: grid;
-  gap: 0.75rem;
-  background-color: var(--surface-b);
-  padding: 1.5rem;
-  border-radius: 0.75rem;
-  font-size: 0.95rem;
-  word-break: break-all;
-}
-
-code {
-  display: block;
-  padding-top: 0.25rem;
-  color: var(--primary-color);
-  font-size: 0.85rem;
 }
 </style>

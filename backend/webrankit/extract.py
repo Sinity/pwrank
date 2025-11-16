@@ -41,10 +41,22 @@ def extract_items_from_anilist(username: str, statuses: Sequence[str]) -> List[D
             url, json={"query": query, "variables": variables}, timeout=DEFAULT_TIMEOUT
         )
         response.raise_for_status()
-    except requests.RequestException:
+    except requests.Timeout as e:
+        print(f"AniList request timed out for user '{username}': {e}")
+        return []
+    except requests.HTTPError as e:
+        print(f"AniList HTTP error for user '{username}': {e}")
+        return []
+    except requests.RequestException as e:
+        print(f"AniList request failed for user '{username}': {e}")
         return []
 
-    data = response.json()
+    try:
+        data = response.json()
+    except ValueError as e:
+        print(f"Failed to parse AniList response as JSON: {e}")
+        return []
+
     lists = data.get("data", {}).get("MediaListCollection", {}).get("lists", [])
     entries = [entry for medialist in lists for entry in medialist.get("entries", [])]
     return entries
@@ -55,7 +67,14 @@ def extract_items_from_steam(steam_id: str) -> List[Dict[str, str]]:
     try:
         response = SESSION.get(url, timeout=DEFAULT_TIMEOUT)
         response.raise_for_status()
-    except requests.RequestException:
+    except requests.Timeout as e:
+        print(f"Steam request timed out for user '{steam_id}': {e}")
+        return []
+    except requests.HTTPError as e:
+        print(f"Steam HTTP error for user '{steam_id}': {e}")
+        return []
+    except requests.RequestException as e:
+        print(f"Steam request failed for user '{steam_id}': {e}")
         return []
 
     soup = BeautifulSoup(response.content, "html.parser")
@@ -69,17 +88,27 @@ def extract_items_from_steam(steam_id: str) -> List[Dict[str, str]]:
             break
 
     if not games_payload:
+        print(f"No games data found in Steam profile for '{steam_id}'")
         return []
 
-    apps = json.loads(games_payload)
+    try:
+        apps = json.loads(games_payload)
+    except json.JSONDecodeError as e:
+        print(f"Failed to parse Steam games data: {e}")
+        return []
+
     result: List[Dict[str, str]] = []
     for app in apps:
-        result.append(
-            {
-                "label": app["name"],
-                "img_url": app["logo"].replace("capsule_184x69", "header"),
-            }
-        )
+        try:
+            result.append(
+                {
+                    "label": app["name"],
+                    "img_url": app["logo"].replace("capsule_184x69", "header"),
+                }
+            )
+        except KeyError as e:
+            print(f"Missing required field in Steam game data: {e}")
+            continue
     return result
 
 

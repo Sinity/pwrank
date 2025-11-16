@@ -2,6 +2,7 @@ import { createApp, defineAsyncComponent } from "vue";
 
 import PrimeVue from "primevue/config";
 import ToastService from "primevue/toastservice";
+import ConfirmationService from "primevue/confirmationservice";
 
 import App from "./App.vue";
 import router from "./router";
@@ -14,10 +15,12 @@ const app = createApp(App);
 
 app.use(PrimeVue, { ripple: true });
 app.use(ToastService);
+app.use(ConfirmationService);
 app.use(router);
 
 const components = {
   InputText: () => import("primevue/inputtext"),
+  Password: () => import("primevue/password"),
   Button: () => import("primevue/button"),
   Menubar: () => import("primevue/menubar"),
   DataView: () => import("primevue/dataview"),
@@ -29,6 +32,7 @@ const components = {
   MultiSelect: () => import("primevue/multiselect"),
   Panel: () => import("primevue/panel"),
   Toast: () => import("primevue/toast"),
+  ConfirmDialog: () => import("primevue/confirmdialog"),
 };
 
 Object.entries(components).forEach(([name, loader]) => {

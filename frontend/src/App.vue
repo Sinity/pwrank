@@ -1,7 +1,17 @@
 <template>
   <div class="app-shell">
     <header class="app-shell__nav">
-      <Menubar :model="menuItems" />
+      <Menubar :model="menuItems">
+        <template #end>
+          <Button
+            v-if="isAuthenticated"
+            label="Logout"
+            icon="pi pi-sign-out"
+            class="p-button-text"
+            @click="logout"
+          />
+        </template>
+      </Menubar>
     </header>
     <main class="app-shell__page">
       <RouterView />
@@ -10,12 +20,23 @@
 </template>
 
 <script setup>
-import { RouterView } from "vue-router";
+import { computed } from "vue";
+import { RouterView, useRouter } from "vue-router";
+import { REST } from "./rest";
+
+const router = useRouter();
 
 const menuItems = [
   { label: "Account", to: "/login" },
   { label: "Rankings", to: "/rankings" },
 ];
+
+const isAuthenticated = computed(() => !!REST.userIdentity());
+
+function logout() {
+  REST.logout();
+  router.push("/login");
+}
 </script>
 
 <style>

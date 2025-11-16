@@ -19,14 +19,16 @@
 
     <div v-if="!message" class="compare-page__grid">
       <Panel
-        v-for="item in items"
+        v-for="(item, index) in items"
         :key="item.id"
         class="compare-card"
         :toggleable="false"
         @click="submitComparison(item.id, opponentId(item.id))"
+        tabindex="0"
+        @keyup.enter="submitComparison(item.id, opponentId(item.id))"
       >
         <template #header>
-          <h2>{{ item.label }}</h2>
+          <h2>{{ item.label }} <span class="keyboard-hint">({{ index + 1 }})</span></h2>
         </template>
         <img :src="item.img_url" :alt="item.label" />
       </Panel>
@@ -35,7 +37,7 @@
 </template>
 
 <script setup>
-import { onMounted, ref, watch } from "vue";
+import { onMounted, onUnmounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useToast } from "primevue/usetoast";
 
@@ -118,7 +120,34 @@ async function submitComparison(winnerId, loserId) {
   }
 }
 
-onMounted(loadComparison);
+function handleKeyPress(event) {
+  if (loading.value || message.value || items.value.length !== 2) return;
+
+  if (event.key === "1" || event.key === "ArrowLeft") {
+    event.preventDefault();
+    const first = items.value[0];
+    const second = items.value[1];
+    if (first && second) {
+      submitComparison(first.id, second.id);
+    }
+  } else if (event.key === "2" || event.key === "ArrowRight") {
+    event.preventDefault();
+    const first = items.value[0];
+    const second = items.value[1];
+    if (first && second) {
+      submitComparison(second.id, first.id);
+    }
+  }
+}
+
+onMounted(() => {
+  loadComparison();
+  window.addEventListener("keydown", handleKeyPress);
+});
+
+onUnmounted(() => {
+  window.removeEventListener("keydown", handleKeyPress);
+});
 </script>
 
 <style scoped>
@@ -156,5 +185,11 @@ onMounted(loadComparison);
   object-fit: cover;
   border-radius: 0.75rem;
   box-shadow: 0 10px 20px rgba(0, 0, 0, 0.35);
+}
+
+.keyboard-hint {
+  font-size: 0.8em;
+  color: var(--primary-color);
+  font-weight: normal;
 }
 </style>

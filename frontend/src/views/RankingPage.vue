@@ -25,44 +25,38 @@
       :style="{ width: '50vw' }"
       :modal="true"
     >
-      <div v-if="ranking.datasource === 'anilist'" class="p-fluid">
-        <div class="p-field p-grid">
-          <label class="p-col-12 p-md-3" for="anilist_username">Username</label>
-          <div class="p-col-12 p-md-9">
-            <InputText
-              id="anilist_username"
-              v-model="anilistUsername"
-              type="text"
-              placeholder="Username"
-            />
-          </div>
+      <div v-if="ranking.datasource === 'anilist'" class="flex flex-column gap-3">
+        <div class="flex flex-column gap-2">
+          <label for="anilist_username">Username</label>
+          <InputText
+            id="anilist_username"
+            v-model="anilistUsername"
+            type="text"
+            placeholder="Username"
+          />
         </div>
-        <div class="p-field p-grid">
-          <label class="p-col-12 p-md-3" for="anilist_status">Statuses</label>
-          <div class="p-col-12 p-md-9">
-            <MultiSelect
-              v-model="anilistStatuses"
-              :options="anilistStatusOptions"
-              optionLabel="label"
-              optionValue="value"
-              placeholder="Status"
-              display="chip"
-            />
-          </div>
+        <div class="flex flex-column gap-2">
+          <label for="anilist_status">Statuses</label>
+          <MultiSelect
+            v-model="anilistStatuses"
+            :options="anilistStatusOptions"
+            optionLabel="label"
+            optionValue="value"
+            placeholder="Status"
+            display="chip"
+          />
         </div>
       </div>
 
-      <div v-else-if="ranking.datasource === 'steam'" class="p-fluid">
-        <div class="p-field p-grid">
-          <label class="p-col-12 p-md-3" for="steam_id">Steam ID</label>
-          <div class="p-col-12 p-md-9">
-            <InputText
-              id="steam_id"
-              v-model="steamId"
-              type="text"
-              placeholder="Steam ID"
-            />
-          </div>
+      <div v-else-if="ranking.datasource === 'steam'" class="flex flex-column gap-3">
+        <div class="flex flex-column gap-2">
+          <label for="steam_id">Steam ID</label>
+          <InputText
+            id="steam_id"
+            v-model="steamId"
+            type="text"
+            placeholder="Steam ID"
+          />
         </div>
       </div>
 
