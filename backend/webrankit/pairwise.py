@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import math
 import random
 from operator import itemgetter
@@ -8,13 +9,11 @@ from typing import Any, List, Optional, Tuple
 import rpy2
 from rpy2.rlike.container import OrdDict
 from rpy2.robjects import DataFrame, packages, r
-from rpy2.robjects.vectors import (
-    FactorVector,
-    FloatSexpVector,
-    FloatVector,
-    IntSexpVector,
-    StrVector,
-)
+from rpy2.robjects.vectors import FactorVector, FloatVector, StrVector
+
+from .constants import RANDOM_COMPARISON_PROBABILITY
+
+logger = logging.getLogger(__name__)
 
 _r_bt2 = packages.importr('BradleyTerry2')
 _r_base = packages.importr('base')
@@ -45,9 +44,16 @@ class PairwiseModel:
         return None
 
     def next_comparison(self) -> Tuple[str, str]:
-        if random.random() > 0.33:
+        """Select next comparison pair.
+
+        Returns optimal comparison based on uncertainty with probability (1 - RANDOM_COMPARISON_PROBABILITY),
+        or a random comparison otherwise to avoid local optima.
+        """
+        if random.random() > RANDOM_COMPARISON_PROBABILITY:
+            logger.debug("Selecting optimal comparison based on highest stderr")
             return self.optimal_comparison()
         else:
+            logger.debug("Selecting random comparison to avoid local optimum")
             return self.random_comparison()
 
     def win(self, winner: str, loser: str, count: int = 1) -> None:

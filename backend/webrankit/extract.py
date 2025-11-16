@@ -1,13 +1,18 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 from typing import Dict, List, Sequence
 
 import requests
 from bs4 import BeautifulSoup
 
-DEFAULT_TIMEOUT = (3.05, 10)  # (connect, read) seconds
+from .constants import EXTERNAL_API_CONNECT_TIMEOUT, EXTERNAL_API_READ_TIMEOUT
+
+logger = logging.getLogger(__name__)
+
+DEFAULT_TIMEOUT = (EXTERNAL_API_CONNECT_TIMEOUT, EXTERNAL_API_READ_TIMEOUT)
 SESSION = requests.Session()
 
 
@@ -42,19 +47,20 @@ def extract_items_from_anilist(username: str, statuses: Sequence[str]) -> List[D
         )
         response.raise_for_status()
     except requests.Timeout as e:
-        print(f"AniList request timed out for user '{username}': {e}")
+        logger.error(f"AniList request timed out for user '{username}': {e}")
         return []
     except requests.HTTPError as e:
-        print(f"AniList HTTP error for user '{username}': {e}")
+        logger.error(f"AniList HTTP error for user '{username}': {e} - Response: {response.text[:200]}")
         return []
     except requests.RequestException as e:
-        print(f"AniList request failed for user '{username}': {e}")
+        logger.error(f"AniList request failed for user '{username}': {e}")
         return []
 
     try:
         data = response.json()
+        logger.info(f"Successfully fetched {len(data.get('data', {}).get('MediaListCollection', {}).get('lists', []))} lists from AniList for user '{username}'")
     except ValueError as e:
-        print(f"Failed to parse AniList response as JSON: {e}")
+        logger.error(f"Failed to parse AniList response as JSON: {e}")
         return []
 
     lists = data.get("data", {}).get("MediaListCollection", {}).get("lists", [])
@@ -68,13 +74,13 @@ def extract_items_from_steam(steam_id: str) -> List[Dict[str, str]]:
         response = SESSION.get(url, timeout=DEFAULT_TIMEOUT)
         response.raise_for_status()
     except requests.Timeout as e:
-        print(f"Steam request timed out for user '{steam_id}': {e}")
+        logger.error(f"Steam request timed out for user '{steam_id}': {e}")
         return []
     except requests.HTTPError as e:
-        print(f"Steam HTTP error for user '{steam_id}': {e}")
+        logger.error(f"Steam HTTP error for user '{steam_id}': {e}")
         return []
     except requests.RequestException as e:
-        print(f"Steam request failed for user '{steam_id}': {e}")
+        logger.error(f"Steam request failed for user '{steam_id}': {e}")
         return []
 
     soup = BeautifulSoup(response.content, "html.parser")
@@ -88,13 +94,14 @@ def extract_items_from_steam(steam_id: str) -> List[Dict[str, str]]:
             break
 
     if not games_payload:
-        print(f"No games data found in Steam profile for '{steam_id}'")
+        logger.warning(f"No games data found in Steam profile for '{steam_id}'")
         return []
 
     try:
         apps = json.loads(games_payload)
+        logger.info(f"Successfully fetched {len(apps)} games from Steam for user '{steam_id}'")
     except json.JSONDecodeError as e:
-        print(f"Failed to parse Steam games data: {e}")
+        logger.error(f"Failed to parse Steam games data: {e}")
         return []
 
     result: List[Dict[str, str]] = []
@@ -107,8 +114,10 @@ def extract_items_from_steam(steam_id: str) -> List[Dict[str, str]]:
                 }
             )
         except KeyError as e:
-            print(f"Missing required field in Steam game data: {e}")
+            logger.warning(f"Missing required field in Steam game data: {e} - Skipping game")
             continue
+
+    logger.info(f"Extracted {len(result)} valid games from Steam for '{steam_id}'")
     return result
 
 

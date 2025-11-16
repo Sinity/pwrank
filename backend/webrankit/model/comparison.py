@@ -87,7 +87,7 @@ class Item(UUIDModel):
     ranking = ForeignKeyField(Ranking, backref="items")
     label = CharField(default="")
     img_url = CharField(default="")
-    init_rating = IntegerField(default=0)
+    init_rating = IntegerField(default=0)  # TODO: Change to FloatField in migration
 
     def has_comparisons(self) -> bool:
         return bool(self.comparisons_i1.count() or self.comparisons_i2.count())
