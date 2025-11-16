@@ -63,7 +63,21 @@
     </Dialog>
 
     <div class="card">
+      <!-- Empty State -->
+      <div v-if="!loading && rankings.length === 0" class="empty-state">
+        <i class="pi pi-star" style="font-size: 4rem; color: var(--text-color-secondary)"></i>
+        <h2>No Rankings Yet</h2>
+        <p>Create your first ranking to start comparing items!</p>
+        <Button
+          icon="pi pi-plus"
+          label="Create Your First Ranking"
+          class="p-button-lg p-button-success"
+          @click="showCreateRanking"
+        />
+      </div>
+
       <DataView
+        v-if="rankings.length > 0"
         :value="rankings"
         :layout="layout"
         :paginator="true"
@@ -102,10 +116,13 @@
                 <span class="product-category">{{ data.datasource }}</span>
                 <div class="product-name">{{ data.name }}</div>
                 <div class="product-description">{{ data.id }}</div>
-                <div>
-                  <span :class="badgeClass(data.datasource)"
-                    >{{ data.item_count }} items</span
-                  >
+                <div class="ranking-meta">
+                  <span :class="badgeClass(data.datasource)">
+                    {{ data.item_count }} items
+                  </span>
+                  <span class="comparison-badge">
+                    {{ data.comp_count }} comparisons
+                  </span>
                 </div>
               </div>
               <div class="product-list-action">
@@ -141,9 +158,14 @@
                   <i class="pi pi-tag product-category-icon"></i>
                   <span class="product-category">{{ data.datasource }}</span>
                 </div>
-                <span :class="badgeClass(data.datasource)"
-                  >{{ data.item_count }} items</span
-                >
+                <div class="badges">
+                  <span :class="badgeClass(data.datasource)">
+                    {{ data.item_count }} items
+                  </span>
+                  <span class="comparison-badge">
+                    {{ data.comp_count }}
+                  </span>
+                </div>
               </div>
               <div class="product-grid-item-content">
                 <img
@@ -403,6 +425,51 @@ onMounted(refreshRankings);
 .product-category {
   font-weight: 600;
   vertical-align: middle;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem;
+  text-align: center;
+  gap: 1rem;
+}
+
+.empty-state h2 {
+  margin: 0;
+  color: var(--text-color);
+}
+
+.empty-state p {
+  margin: 0;
+  color: var(--text-color-secondary);
+  max-width: 500px;
+}
+
+.ranking-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.comparison-badge {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  background-color: var(--primary-color);
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.badges {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  align-items: flex-end;
 }
 
 ::v-deep(.product-list-item) {
