@@ -63,8 +63,8 @@ class PairwiseModel:
 
     def draw(self, item1: str, item2: str, count: int = 1) -> None:
         idx = self._get_comparison_idx(item1, item2)
-        self.comparison_wins[0][idx] += int(0.5 * count)
-        self.comparison_wins[1][idx] += int(0.5 * count)
+        self.comparison_wins[0][idx] += 0.5 * count
+        self.comparison_wins[1][idx] += 0.5 * count
 
     def optimal_comparison(self) -> Tuple[str, str]:
         if self.coefficients is None:
@@ -114,4 +114,3 @@ class PairwiseModel:
         column_win1 = ('win1', FloatVector(self.comparison_wins[0]))
         column_win2 = ('win2', FloatVector(self.comparison_wins[1]))
         return DataFrame(OrdDict([column_comp1, column_comp2, column_win1, column_win2]))
-

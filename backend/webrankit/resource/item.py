@@ -9,7 +9,7 @@ from flask import jsonify, request
 from flask_jwt_extended import current_user, jwt_required
 from flask_restful import Resource
 
-from ..model import Item, Ranking
+from ..model import Comparison, Item, Ranking
 
 logger = logging.getLogger(__name__)
 
@@ -196,8 +196,9 @@ class ItemResource(Resource):
         ranking_id = str(item.ranking.id)
 
         # Delete all comparisons involving this item
-        item.comparisons_i1.delete()
-        item.comparisons_i2.delete()
+        Comparison.delete().where(
+            (Comparison.item1 == item) | (Comparison.item2 == item)
+        ).execute()
 
         # Delete the item
         item.delete_instance()
