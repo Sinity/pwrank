@@ -757,7 +757,7 @@ async function deleteItem() {
 
   submitting.value = true;
   try {
-    await REST.delete(`/item/${itemToDelete.value.id}`);
+    await REST.del(`/item/${itemToDelete.value.id}`);
 
     toast.add({
       severity: "success",
@@ -799,7 +799,7 @@ async function bulkDeleteItems() {
     // Delete all selected items
     for (const item of selectedItems.value) {
       try {
-        await REST.delete(`/item/${item.id}`);
+        await REST.del(`/item/${item.id}`);
         successCount++;
       } catch (error) {
         errorCount++;
