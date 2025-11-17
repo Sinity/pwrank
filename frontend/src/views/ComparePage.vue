@@ -15,18 +15,25 @@
       />
     </div>
 
+    <div v-if="!message && items.length === 2" class="compare-hint">
+      <i class="pi pi-info-circle"></i>
+      <span>Click your preferred item or press <kbd>1</kbd> / <kbd>←</kbd> for left, <kbd>2</kbd> / <kbd>→</kbd> for right</span>
+    </div>
+
     <p v-if="message" class="compare-page__message">{{ message }}</p>
 
     <div v-if="!message" class="compare-page__grid">
       <Panel
-        v-for="item in items"
+        v-for="(item, index) in items"
         :key="item.id"
         class="compare-card"
         :toggleable="false"
         @click="submitComparison(item.id, opponentId(item.id))"
+        tabindex="0"
+        @keyup.enter="submitComparison(item.id, opponentId(item.id))"
       >
         <template #header>
-          <h2>{{ item.label }}</h2>
+          <h2>{{ item.label }} <span class="keyboard-hint">({{ index + 1 }})</span></h2>
         </template>
         <img :src="item.img_url" :alt="item.label" />
       </Panel>
@@ -35,7 +42,7 @@
 </template>
 
 <script setup>
-import { onMounted, ref, watch } from "vue";
+import { onMounted, onUnmounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useToast } from "primevue/usetoast";
 
@@ -118,7 +125,34 @@ async function submitComparison(winnerId, loserId) {
   }
 }
 
-onMounted(loadComparison);
+function handleKeyPress(event) {
+  if (loading.value || message.value || items.value.length !== 2) return;
+
+  if (event.key === "1" || event.key === "ArrowLeft") {
+    event.preventDefault();
+    const first = items.value[0];
+    const second = items.value[1];
+    if (first && second) {
+      submitComparison(first.id, second.id);
+    }
+  } else if (event.key === "2" || event.key === "ArrowRight") {
+    event.preventDefault();
+    const first = items.value[0];
+    const second = items.value[1];
+    if (first && second) {
+      submitComparison(second.id, first.id);
+    }
+  }
+}
+
+onMounted(() => {
+  loadComparison();
+  window.addEventListener("keydown", handleKeyPress);
+});
+
+onUnmounted(() => {
+  window.removeEventListener("keydown", handleKeyPress);
+});
 </script>
 
 <style scoped>
@@ -156,5 +190,37 @@ onMounted(loadComparison);
   object-fit: cover;
   border-radius: 0.75rem;
   box-shadow: 0 10px 20px rgba(0, 0, 0, 0.35);
+}
+
+.keyboard-hint {
+  font-size: 0.8em;
+  color: var(--primary-color);
+  font-weight: normal;
+}
+
+.compare-hint {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  background-color: rgba(var(--primary-color-rgb, 59, 130, 246), 0.1);
+  border-left: 4px solid var(--primary-color);
+  border-radius: 4px;
+  color: var(--text-color);
+  font-size: 0.95rem;
+}
+
+.compare-hint i {
+  color: var(--primary-color);
+  font-size: 1.25rem;
+}
+
+.compare-hint kbd {
+  padding: 0.2rem 0.4rem;
+  border-radius: 3px;
+  background-color: var(--surface-100);
+  border: 1px solid var(--surface-300);
+  font-family: monospace;
+  font-size: 0.9em;
 }
 </style>

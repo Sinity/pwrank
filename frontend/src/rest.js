@@ -1,7 +1,9 @@
 const STORAGE_KEY = "pwrank.auth";
 
+const viteEnv = typeof import.meta !== "undefined" ? import.meta.env : undefined;
 const API_BASE_URL =
   (typeof process !== "undefined" && process.env?.VUE_APP_API_BASE_URL) ||
+  viteEnv?.VUE_APP_API_BASE_URL ||
   "http://localhost:5000";
 
 class HttpError extends Error {
@@ -16,6 +18,7 @@ class HttpError extends Error {
 class RestClient {
   constructor(baseUrl) {
     this.baseUrl = baseUrl.replace(/\/$/, "");
+    this._refreshPromise = null;
   }
 
   get auth() {
@@ -72,21 +75,31 @@ class RestClient {
       return false;
     }
 
-    try {
-      const data = await this._fetchJson("/auth", {
-        method: "GET",
-        headers: this._headers(auth.refreshToken),
-      });
-      if (!data?.access_token) {
+    if (this._refreshPromise) {
+      return this._refreshPromise;
+    }
+
+    this._refreshPromise = (async () => {
+      try {
+        const data = await this._fetchJson("/auth", {
+          method: "GET",
+          headers: this._headers(auth.refreshToken),
+        });
+        if (!data?.access_token) {
+          this.logout();
+          return false;
+        }
+        this.auth = { ...auth, accessToken: data.access_token };
+        return true;
+      } catch (error) {
         this.logout();
         return false;
+      } finally {
+        this._refreshPromise = null;
       }
-      this.auth = { ...auth, accessToken: data.access_token };
-      return true;
-    } catch (error) {
-      this.logout();
-      return false;
-    }
+    })();
+
+    return this._refreshPromise;
   }
 
   async get(endpoint) {

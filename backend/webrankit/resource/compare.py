@@ -53,6 +53,10 @@ class CompareResource(Resource):
         item2 = Item.get_or_none(Item.id == UUID(loseitem))
         if item1 is None or item2 is None:
             return {"message": "One or more comparison items were not found."}, 404
+        if item1.id == item2.id:
+            return {"message": "Cannot compare an item against itself."}, 400
+        if item1.ranking.id != ranking.id or item2.ranking.id != ranking.id:
+            return {"message": "Items must belong to the specified ranking."}, 400
 
         comp = Comparison.compare(item1, item2, str(item1.id))
         model = ranking.get_pairwise_model()

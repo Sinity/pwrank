@@ -53,6 +53,9 @@ class UserCollectionResource(Resource):
         if not email or not password:
             return {"message": "Email and password are required."}, 400
 
+        if len(password) < 8:
+            return {"message": "Password must be at least 8 characters long."}, 400
+
         if User.get_or_none(User.email == email):
             return {"message": f"User `{email}` already exists."}, 409
 

@@ -20,6 +20,12 @@ class Ranking(UUIDModel):
     name = CharField()
     datasource = CharField(default="")
 
+    class Meta:
+        indexes = (
+            # Index for checking duplicate ranking names per user
+            (("user", "name"), False),
+        )
+
     def compare_by_init_ratings(self) -> None:
         items_by_rating = list(self.items.order_by(Item.init_rating))
         for item1, item2 in zip(items_by_rating, items_by_rating[1:]):
@@ -87,7 +93,14 @@ class Item(UUIDModel):
     ranking = ForeignKeyField(Ranking, backref="items")
     label = CharField(default="")
     img_url = CharField(default="")
-    init_rating = IntegerField(default=0)
+    init_rating = IntegerField(default=0)  # TODO: Change to FloatField in migration
+
+    class Meta:
+        indexes = (
+            # Index for checking duplicate item labels per ranking
+            # Also speeds up item lookups by ranking
+            (("ranking", "label"), False),
+        )
 
     def has_comparisons(self) -> bool:
         return bool(self.comparisons_i1.count() or self.comparisons_i2.count())
@@ -96,6 +109,11 @@ class Item(UUIDModel):
 class Comparison(BaseModel):
     class Meta:
         primary_key = CompositeKey("item1", "item2")
+        indexes = (
+            # Index for fetching comparisons by ranking
+            # Speeds up recent comparisons queries
+            (("ranking",), False),
+        )
 
     ranking = ForeignKeyField(Ranking, backref="comparisons")
     item1 = ForeignKeyField(Item, backref="comparisons_i1")

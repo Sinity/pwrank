@@ -33,6 +33,16 @@ class RankingResource(Resource):
         ranking_json["items"] = []
 
         model = ranking.get_pairwise_model()
+
+        # Count comparisons per item
+        item_comparison_counts = {}
+        for comp in ranking.comparisons:
+            item1_id = str(comp.item1.id)
+            item2_id = str(comp.item2.id)
+            total_comps = comp.win1_count + comp.win2_count + comp.draw_count
+            item_comparison_counts[item1_id] = item_comparison_counts.get(item1_id, 0) + total_comps
+            item_comparison_counts[item2_id] = item_comparison_counts.get(item2_id, 0) + total_comps
+
         for item in ranking.items:
             entry = {
                 "id": str(item.id),
@@ -41,19 +51,25 @@ class RankingResource(Resource):
                 "init_rating": item.init_rating,
                 "curr_rating": None,
                 "stderr": 0,
+                "ability": None,
+                "comparisons_count": 0,
             }
             if getattr(model, "coefficients", None):
                 coeff = model.coeff_by_id(str(item.id))
                 if coeff:
-                    _, stderr, _ = coeff
+                    ability, stderr, _ = coeff
                     stderr_value = float(stderr)
                     if math.isnan(stderr_value):
                         stderr_value = 0.0
                     idx = model.coefficients.index(coeff)
                     total = max(len(model.coefficients), 1)
-                    rating = (idx / total) * 10
+                    # Use percentile rank (0-10 scale), ensuring lowest item gets > 0
+                    rating = ((idx + 1) / total) * 10
                     entry["curr_rating"] = round(rating, 2)
                     entry["stderr"] = round(stderr_value, 2)
+                    entry["ability"] = round(float(ability), 3)
+
+            entry["comparisons_count"] = item_comparison_counts.get(str(item.id), 0)
             ranking_json["items"].append(entry)
 
         return jsonify(ranking=ranking_json)
@@ -120,8 +136,11 @@ class RankingCollectionResource(Resource):
         if not datasource:
             return {"message": "Datasource is required."}, 400
 
-        if Ranking.get_or_none(Ranking.name == name):
-            return {"message": "Ranking with this name already exists."}, 409
+        # Check for duplicate name per user, not globally
+        if Ranking.get_or_none(
+            (Ranking.name == name) & (Ranking.user == current_user.id)
+        ):
+            return {"message": "You already have a ranking with this name."}, 409
 
         ranking = Ranking.create(user=current_user, name=name, datasource=datasource)
         return jsonify(message=f"Ranking {ranking.name} created.", ranking=_serialize_ranking_summary(ranking))

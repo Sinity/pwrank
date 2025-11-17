@@ -1,32 +1,39 @@
 <template>
   <div class="rankings-page">
+    <Toast />
+    <ConfirmDialog />
     <Dialog
       header="Create ranking"
       v-model:visible="displayCreateRankingModal"
       :style="{ width: '50vw' }"
       :modal="true"
     >
-      <div class="p-fluid">
-        <div class="p-field p-grid">
-          <div class="p-col-12 p-md-10">
-            <InputText
-              v-model="name"
-              id="name"
-              type="text"
-              placeholder="Name"
-            />
-          </div>
+      <div class="flex flex-column gap-3">
+        <div class="flex flex-column gap-2">
+          <label for="name">Ranking Name *</label>
+          <InputText
+            v-model="name"
+            id="name"
+            type="text"
+            placeholder="Enter ranking name"
+            aria-required="true"
+            aria-describedby="name_help"
+          />
+          <small id="name_help" class="help-text">A descriptive name for this ranking</small>
         </div>
-        <div class="p-field p-grid">
-          <div class="p-col-12 p-md-10">
-            <Dropdown
-              v-model="datasource"
-              :options="datasourceOptions"
-              optionLabel="label"
-              optionValue="value"
-              placeholder="Datasource"
-            />
-          </div>
+        <div class="flex flex-column gap-2">
+          <label for="datasource">Data Source *</label>
+          <Dropdown
+            v-model="datasource"
+            id="datasource"
+            :options="datasourceOptions"
+            optionLabel="label"
+            optionValue="value"
+            placeholder="Select data source"
+            aria-required="true"
+            aria-describedby="datasource_help"
+          />
+          <small id="datasource_help" class="help-text">Where to sync items from (AniList for anime, Steam for games)</small>
         </div>
       </div>
 
@@ -47,16 +54,14 @@
       :style="{ width: '50vw' }"
       :modal="true"
     >
-      <div class="p-formgroup-inline">
-        <div class="p-field">
-          <label for="edit-name" class="p-sr-only">Name</label>
-          <InputText
-            v-model="name"
-            id="edit-name"
-            type="text"
-            placeholder="Name"
-          />
-        </div>
+      <div class="flex flex-column gap-3">
+        <label for="edit-name" class="sr-only">Name</label>
+        <InputText
+          v-model="name"
+          id="edit-name"
+          type="text"
+          placeholder="Name"
+        />
       </div>
 
       <template #footer>
@@ -71,41 +76,57 @@
     </Dialog>
 
     <div class="card">
+      <!-- Loading Skeleton -->
+      <div v-if="loading" class="skeleton-grid">
+        <div v-for="i in 6" :key="i" class="skeleton-card">
+          <Skeleton height="200px" class="mb-3" />
+          <Skeleton height="1.5rem" width="70%" class="mb-2" />
+          <Skeleton height="1rem" width="50%" />
+        </div>
+      </div>
+
+      <!-- Empty State -->
+      <div v-else-if="!loading && rankings.length === 0" class="empty-state">
+        <i class="pi pi-star" style="font-size: 4rem; color: var(--text-color-secondary)"></i>
+        <h2>No Rankings Yet</h2>
+        <p>Create your first ranking to start comparing items!</p>
+        <Button
+          icon="pi pi-plus"
+          label="Create Your First Ranking"
+          class="p-button-lg p-button-success"
+          @click="showCreateRanking"
+        />
+      </div>
+
       <DataView
+        v-else-if="rankings.length > 0"
         :value="rankings"
         :layout="layout"
         :paginator="true"
         :rows="9"
         :sortOrder="sortOrder"
         :sortField="sortField"
-        :loading="loading"
       >
         <template #header>
-          <div class="p-grid p-nogutter">
-            <div class="p-col-12 p-md-3" style="text-align: left">
-              <Dropdown
-                v-model="sortKey"
-                :options="sortOptions"
-                optionLabel="label"
-                placeholder="Sort by"
-                @change="onSortChange"
-              />
-            </div>
-            <div class="p-col-12 p-md-6" style="text-align: center">
-              <Button
-                icon="pi pi-plus"
-                label="Create new"
-                @click="showCreateRanking"
-              />
-            </div>
-            <div class="p-col-12 p-md-3" style="text-align: right">
-              <DataViewLayoutOptions v-model="layout" />
-            </div>
+          <div class="flex flex-wrap align-items-center justify-content-between gap-3">
+            <Dropdown
+              v-model="sortKey"
+              :options="sortOptions"
+              optionLabel="label"
+              placeholder="Sort by"
+              @change="onSortChange"
+            />
+            <Button
+              icon="pi pi-plus"
+              label="Create new"
+              @click="showCreateRanking"
+            />
+            <DataViewLayoutOptions v-model="layout" />
           </div>
         </template>
 
         <template #list="{ data }">
-          <div class="p-col-12">
+          <div class="col-12">
             <div class="product-list-item">
               <img
                 :src="`${baseURL}${data.datasource}.png`"
@@ -116,10 +137,13 @@
                 <span class="product-category">{{ data.datasource }}</span>
                 <div class="product-name">{{ data.name }}</div>
                 <div class="product-description">{{ data.id }}</div>
-                <div>
-                  <span :class="badgeClass(data.datasource)"
-                    >{{ data.item_count }} items</span
-                  >
+                <div class="ranking-meta">
+                  <span :class="badgeClass(data.datasource)">
+                    {{ data.item_count }} items
+                  </span>
+                  <span class="comparison-badge">
+                    {{ data.comp_count }} comparisons
+                  </span>
                 </div>
               </div>
               <div class="product-list-action">
@@ -148,16 +172,21 @@
         </template>
 
         <template #grid="{ data }">
-          <div class="p-col-12 p-md-4">
+          <div class="col-12 md:col-4">
             <div class="product-grid-item card">
               <div class="product-grid-item-top">
                 <div>
                   <i class="pi pi-tag product-category-icon"></i>
                   <span class="product-category">{{ data.datasource }}</span>
                 </div>
-                <span :class="badgeClass(data.datasource)"
-                  >{{ data.item_count }} items</span
-                >
+                <div class="badges">
+                  <span :class="badgeClass(data.datasource)">
+                    {{ data.item_count }} items
+                  </span>
+                  <span class="comparison-badge">
+                    {{ data.comp_count }}
+                  </span>
+                </div>
               </div>
               <div class="product-grid-item-content">
                 <img
@@ -197,11 +226,13 @@
 import { onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import { useToast } from "primevue/usetoast";
+import { useConfirm } from "primevue/useconfirm";
 
 import { REST, HttpError } from "../rest";
 
 const router = useRouter();
 const toast = useToast();
+const confirm = useConfirm();
 
 const rankings = ref([]);
 const loading = ref(false);
@@ -331,26 +362,34 @@ async function modifyRanking() {
 }
 
 async function deleteRanking(id) {
-  try {
-    const data = await REST.del(`/ranking/${id}`);
-    toast.add({
-      severity: "success",
-      summary: "Ranking deleted",
-      detail: data.message ?? "",
-      life: 3000,
-    });
-    await refreshRankings();
-  } catch (error) {
-    toast.add({
-      severity: "error",
-      summary: "Failed to delete ranking",
-      detail:
-        error instanceof HttpError
-          ? error.payload?.message || "Unexpected backend response."
-          : "Unable to reach the backend.",
-      life: 4000,
-    });
-  }
+  confirm.require({
+    message: "Are you sure you want to delete this ranking? This action cannot be undone.",
+    header: "Confirm Deletion",
+    icon: "pi pi-exclamation-triangle",
+    acceptClass: "p-button-danger",
+    accept: async () => {
+      try {
+        const data = await REST.del(`/ranking/${id}`);
+        toast.add({
+          severity: "success",
+          summary: "Ranking deleted",
+          detail: data.message ?? "",
+          life: 3000,
+        });
+        await refreshRankings();
+      } catch (error) {
+        toast.add({
+          severity: "error",
+          summary: "Failed to delete ranking",
+          detail:
+            error instanceof HttpError
+              ? error.payload?.message || "Unexpected backend response."
+              : "Unable to reach the backend.",
+          life: 4000,
+        });
+      }
+    },
+  });
 }
 
 function onSortChange(event) {
@@ -407,6 +446,51 @@ onMounted(refreshRankings);
 .product-category {
   font-weight: 600;
   vertical-align: middle;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem;
+  text-align: center;
+  gap: 1rem;
+}
+
+.empty-state h2 {
+  margin: 0;
+  color: var(--text-color);
+}
+
+.empty-state p {
+  margin: 0;
+  color: var(--text-color-secondary);
+  max-width: 500px;
+}
+
+.ranking-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.comparison-badge {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  background-color: var(--primary-color);
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.badges {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  align-items: flex-end;
 }
 
 ::v-deep(.product-list-item) {
@@ -481,5 +565,33 @@ onMounted(refreshRankings);
       width: 100%;
     }
   }
+}
+
+.skeleton-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1.5rem;
+  padding: 1rem 0;
+}
+
+.skeleton-card {
+  padding: 1rem;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+}
+
+.mb-2 {
+  margin-bottom: 0.5rem;
+}
+
+.mb-3 {
+  margin-bottom: 1rem;
+}
+
+.help-text {
+  color: var(--text-color-secondary);
+  font-size: 0.875rem;
+  margin-top: 0.25rem;
+  display: block;
 }
 </style>
