@@ -84,6 +84,8 @@ class ItemCollectionResource(Resource):
             img_url=img_url,
             init_rating=init_rating,
         )
+        # Seed comparisons to ensure new items enter the model
+        ranking.compare_by_init_ratings()
 
         logger.info(
             f"Created item '{label}' in ranking {ranking_uid} by user {current_user.id}"
