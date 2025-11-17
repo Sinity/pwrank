@@ -541,15 +541,15 @@ function exportToCSV() {
   const headers = ["Rank", "Label", "Current Rating", "Ability Score", "Uncertainty", "Comparisons", "Initial Rating"];
   const rows = items.value
     .filter(item => item.curr_rating !== null)
-    .sort((a, b) => (b.curr_rating || 0) - (a.curr_rating || 0))
+    .sort((a, b) => (b.curr_rating ?? 0) - (a.curr_rating ?? 0))
     .map((item, index) => [
       index + 1,
       `"${item.label.replace(/"/g, '""')}"`,
-      item.curr_rating || "",
-      item.ability || "",
-      item.stderr || "",
+      item.curr_rating ?? "",
+      item.ability ?? "",
+      item.stderr ?? "",
       item.comparisons_count || 0,
-      item.init_rating || "",
+      item.init_rating ?? "",
     ]);
 
   const csv = [
@@ -656,7 +656,7 @@ function openEditItemDialog(item) {
     id: item.id,
     label: item.label,
     img_url: item.img_url || "",
-    init_rating: item.init_rating || 5,
+    init_rating: typeof item.init_rating === "number" ? item.init_rating : 5,
   };
   displayEditItemModal.value = true;
 }
