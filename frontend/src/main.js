@@ -33,6 +33,8 @@ const components = {
   Panel: () => import("primevue/panel"),
   Toast: () => import("primevue/toast"),
   ConfirmDialog: () => import("primevue/confirmdialog"),
+  InputNumber: () => import("primevue/inputnumber"),
+  Skeleton: () => import("primevue/skeleton"),
 };
 
 Object.entries(components).forEach(([name, loader]) => {

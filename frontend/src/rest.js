@@ -18,7 +18,7 @@ class HttpError extends Error {
 class RestClient {
   constructor(baseUrl) {
     this.baseUrl = baseUrl.replace(/\/$/, "");
-    this._refreshing = false;
+    this._refreshPromise = null;
   }
 
   get auth() {
@@ -71,28 +71,35 @@ class RestClient {
 
   async refreshToken() {
     const auth = this.auth;
-    if (!auth?.refreshToken || this._refreshing) {
+    if (!auth?.refreshToken) {
       return false;
     }
 
-    this._refreshing = true;
-    try {
-      const data = await this._fetchJson("/auth", {
-        method: "GET",
-        headers: this._headers(auth.refreshToken),
-      });
-      if (!data?.access_token) {
+    if (this._refreshPromise) {
+      return this._refreshPromise;
+    }
+
+    this._refreshPromise = (async () => {
+      try {
+        const data = await this._fetchJson("/auth", {
+          method: "GET",
+          headers: this._headers(auth.refreshToken),
+        });
+        if (!data?.access_token) {
+          this.logout();
+          return false;
+        }
+        this.auth = { ...auth, accessToken: data.access_token };
+        return true;
+      } catch (error) {
         this.logout();
         return false;
+      } finally {
+        this._refreshPromise = null;
       }
-      this.auth = { ...auth, accessToken: data.access_token };
-      return true;
-    } catch (error) {
-      this.logout();
-      return false;
-    } finally {
-      this._refreshing = false;
-    }
+    })();
+
+    return this._refreshPromise;
   }
 
   async get(endpoint) {
