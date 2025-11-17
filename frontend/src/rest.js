@@ -1,7 +1,9 @@
 const STORAGE_KEY = "pwrank.auth";
 
+const viteEnv = typeof import.meta !== "undefined" ? import.meta.env : undefined;
 const API_BASE_URL =
-  import.meta.env?.VUE_APP_API_BASE_URL ||
+  (typeof process !== "undefined" && process.env?.VUE_APP_API_BASE_URL) ||
+  viteEnv?.VUE_APP_API_BASE_URL ||
   "http://localhost:5000";
 
 class HttpError extends Error {

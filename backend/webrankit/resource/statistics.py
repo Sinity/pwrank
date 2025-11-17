@@ -39,7 +39,12 @@ class RankingStatisticsResource(Resource):
             comparison_counts[item_comps] = comparison_counts.get(item_comps, 0) + 1
 
         # Get recent comparisons
-        recent = list(ranking.comparisons.order_by(Comparison.id.desc()).limit(10))
+        total_matches = (
+            Comparison.win1_count + Comparison.win2_count + Comparison.draw_count
+        )
+        recent = list(
+            ranking.comparisons.order_by(total_matches.desc()).limit(10)
+        )
         recent_comparisons = [
             {
                 "item1": comp.item1.label,
