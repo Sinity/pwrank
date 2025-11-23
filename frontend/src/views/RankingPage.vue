@@ -59,7 +59,7 @@
 
     <Dialog
       v-if="ranking"
-      v-model:visible="displaySyncModal"
+      v-model:visible="modals.sync.isOpen.value"
       :header="`Sync items from ${ranking.datasource}`"
       :style="{ width: '50vw' }"
       :modal="true"
@@ -113,7 +113,7 @@
 
     <!-- Add Item Dialog -->
     <Dialog
-      v-model:visible="displayAddItemModal"
+      v-model:visible="modals.addItem.isOpen.value"
       header="Add New Item"
       :style="{ width: '50vw' }"
       :modal="true"
@@ -163,7 +163,7 @@
           label="Cancel"
           icon="pi pi-times"
           class="p-button-text"
-          @click="displayAddItemModal = false"
+          @click="modals.addItem.close()"
         />
         <Button
           label="Add"
@@ -178,7 +178,7 @@
 
     <!-- Edit Item Dialog -->
     <Dialog
-      v-model:visible="displayEditItemModal"
+      v-model:visible="modals.editItem.isOpen.value"
       header="Edit Item"
       :style="{ width: '50vw' }"
       :modal="true"
@@ -228,7 +228,7 @@
           label="Cancel"
           icon="pi pi-times"
           class="p-button-text"
-          @click="displayEditItemModal = false"
+          @click="modals.editItem.close()"
         />
         <Button
           label="Save"
@@ -243,7 +243,7 @@
 
     <!-- Delete Confirmation Dialog -->
     <Dialog
-      v-model:visible="displayDeleteConfirmModal"
+      v-model:visible="modals.deleteItem.isOpen.value"
       header="Confirm Delete"
       :style="{ width: '30vw' }"
       :modal="true"
@@ -258,7 +258,7 @@
           label="Cancel"
           icon="pi pi-times"
           class="p-button-text"
-          @click="displayDeleteConfirmModal = false"
+          @click="modals.deleteItem.close()"
         />
         <Button
           label="Delete"
@@ -273,7 +273,7 @@
 
     <!-- Bulk Delete Confirmation Dialog -->
     <Dialog
-      v-model:visible="displayBulkDeleteConfirmModal"
+      v-model:visible="modals.bulkDelete.isOpen.value"
       header="Confirm Bulk Delete"
       :style="{ width: '30vw' }"
       :modal="true"
@@ -288,7 +288,7 @@
           label="Cancel"
           icon="pi pi-times"
           class="p-button-text"
-          @click="displayBulkDeleteConfirmModal = false"
+          @click="modals.bulkDelete.close()"
         />
         <Button
           label="Delete All"
@@ -449,22 +449,17 @@
 <script setup>
 import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { useToast } from "primevue/usetoast";
 
-import { REST, HttpError } from "../rest";
-import {
-  FALLBACK_IMAGE_SVG,
-  TOAST_DURATION_SHORT,
-  TOAST_DURATION_NORMAL,
-  TOAST_DURATION_LONG,
-  MIN_ITEMS_FOR_RANKING,
-  SEARCH_DEBOUNCE_MS,
-} from "../constants";
+import { REST } from "../rest";
+import { FALLBACK_IMAGE_SVG, MIN_ITEMS_FOR_RANKING } from "../constants";
 import { isSafeImageUrl } from "../utils/validation";
+import { useNotification } from "../composables/useNotification";
+import { useModals } from "../composables/useModal";
 
 const route = useRoute();
 const router = useRouter();
-const toast = useToast();
+const { notifySuccess, notifyError, notifyWarn } = useNotification();
+const modals = useModals(['sync', 'addItem', 'editItem', 'deleteItem', 'bulkDelete']);
 
 // Fallback image handler
 const handleImageError = (event) => {
@@ -520,15 +515,10 @@ const filteredItems = computed(() => {
   return filtered;
 });
 
-const displaySyncModal = ref(false);
 const steamId = ref("");
 const anilistUsername = ref("");
 const anilistStatuses = ref([]);
 
-const displayAddItemModal = ref(false);
-const displayEditItemModal = ref(false);
-const displayDeleteConfirmModal = ref(false);
-const displayBulkDeleteConfirmModal = ref(false);
 const itemForm = ref({ label: "", img_url: "", init_rating: 5 });
 const editItemForm = ref({ id: "", label: "", img_url: "", init_rating: 5 });
 const itemToDelete = ref(null);
@@ -577,12 +567,7 @@ function getUncertaintyColor(stderr) {
 
 function exportToCSV() {
   if (!items.value || items.value.length === 0) {
-    toast.add({
-      severity: "warn",
-      summary: "Nothing to export",
-      detail: "Add items to the ranking before exporting.",
-      life: TOAST_DURATION_NORMAL,
-    });
+    notifyWarn("Nothing to export", "Add items to the ranking before exporting.");
     return;
   }
 
@@ -602,12 +587,7 @@ function exportToCSV() {
       ]);
 
     if (rows.length === 0) {
-      toast.add({
-        severity: "warn",
-        summary: "No ranked items",
-        detail: "Items need to be compared before they can be exported with ratings.",
-        life: TOAST_DURATION_NORMAL,
-      });
+      notifyWarn("No ranked items", "Items need to be compared before they can be exported with ratings.");
       return;
     }
 
@@ -627,19 +607,9 @@ function exportToCSV() {
     document.body.removeChild(link);
     URL.revokeObjectURL(url); // Clean up memory
 
-    toast.add({
-      severity: "success",
-      summary: "Exported",
-      detail: `Exported ${rows.length} items to CSV`,
-      life: TOAST_DURATION_NORMAL,
-    });
+    notifySuccess("Exported", `Exported ${rows.length} items to CSV`);
   } catch (error) {
-    toast.add({
-      severity: "error",
-      summary: "Export failed",
-      detail: "Failed to create CSV file. Please try again.",
-      life: TOAST_DURATION_LONG,
-    });
+    notifyError("Failed to create CSV file. Please try again.", "Export failed");
     console.error("CSV export error:", error);
   }
 }
@@ -656,32 +626,26 @@ function openSyncDialog() {
   steamId.value = "";
   anilistUsername.value = "";
   anilistStatuses.value = [];
-  displaySyncModal.value = true;
+  modals.sync.open();
 }
 
 async function loadRanking() {
+  if (loading.value) return;
+
   loading.value = true;
   try {
     const data = await REST.get(`/ranking/${rankingId.value}`);
     ranking.value = data.ranking;
     items.value = data.ranking?.items ?? [];
   } catch (error) {
-    toast.add({
-      severity: "error",
-      summary: "Failed to load ranking",
-      detail:
-        error instanceof HttpError
-          ? error.payload?.message || "Unexpected backend response."
-          : "Unable to reach the backend.",
-      life: TOAST_DURATION_LONG,
-    });
+    notifyError(error, "Failed to load ranking");
   } finally {
     loading.value = false;
   }
 }
 
 async function syncItems() {
-  if (!ranking.value) return;
+  if (!ranking.value || syncing.value) return;
 
   syncing.value = true;
   const payload = {
@@ -692,24 +656,11 @@ async function syncItems() {
 
   try {
     await REST.post(`/ranking/${rankingId.value}`, payload);
-    toast.add({
-      severity: "success",
-      summary: "Items synced",
-      detail: "",
-      life: TOAST_DURATION_SHORT,
-    });
+    notifySuccess("Items synced");
     await loadRanking();
-    displaySyncModal.value = false;
+    modals.sync.close();
   } catch (error) {
-    toast.add({
-      severity: "error",
-      summary: "Sync failed",
-      detail:
-        error instanceof HttpError
-          ? error.payload?.message || "Unexpected backend response."
-          : "Unable to reach the backend.",
-      life: TOAST_DURATION_LONG,
-    });
+    notifyError(error, "Sync failed");
   } finally {
     syncing.value = false;
   }
@@ -717,7 +668,7 @@ async function syncItems() {
 
 function openAddItemDialog() {
   itemForm.value = { label: "", img_url: "", init_rating: 5 };
-  displayAddItemModal.value = true;
+  modals.addItem.open();
 }
 
 function openEditItemDialog(item) {
@@ -727,34 +678,26 @@ function openEditItemDialog(item) {
     img_url: item.img_url || "",
     init_rating: typeof item.init_rating === "number" ? item.init_rating : 5,
   };
-  displayEditItemModal.value = true;
+  modals.editItem.open();
 }
 
 function openDeleteConfirmDialog(item) {
   itemToDelete.value = item;
-  displayDeleteConfirmModal.value = true;
+  modals.deleteItem.open();
 }
 
 async function addItem() {
   if (!itemForm.value.label.trim()) {
-    toast.add({
-      severity: "error",
-      summary: "Validation Error",
-      detail: "Item label is required.",
-      life: TOAST_DURATION_NORMAL,
-    });
+    notifyError("Item label is required.", "Validation Error");
     return;
   }
 
   if (!isSafeImageUrl(itemForm.value.img_url)) {
-    toast.add({
-      severity: "error",
-      summary: "Invalid Image URL",
-      detail: "Image URL must use http:// or https:// protocol.",
-      life: TOAST_DURATION_NORMAL,
-    });
+    notifyError("Image URL must use http:// or https:// protocol.", "Invalid Image URL");
     return;
   }
+
+  if (submitting.value) return;
 
   submitting.value = true;
   try {
@@ -764,25 +707,11 @@ async function addItem() {
       init_rating: itemForm.value.init_rating,
     });
 
-    toast.add({
-      severity: "success",
-      summary: "Item Added",
-      detail: `"${itemForm.value.label}" has been added to the ranking.`,
-      life: TOAST_DURATION_NORMAL,
-    });
-
-    displayAddItemModal.value = false;
+    notifySuccess("Item Added", `"${itemForm.value.label}" has been added to the ranking.`);
+    modals.addItem.close();
     await loadRanking();
   } catch (error) {
-    toast.add({
-      severity: "error",
-      summary: "Failed to add item",
-      detail:
-        error instanceof HttpError
-          ? error.payload?.message || "Unexpected backend response."
-          : "Unable to reach the backend.",
-      life: TOAST_DURATION_LONG,
-    });
+    notifyError(error, "Failed to add item");
   } finally {
     submitting.value = false;
   }
@@ -790,24 +719,16 @@ async function addItem() {
 
 async function updateItem() {
   if (!editItemForm.value.label.trim()) {
-    toast.add({
-      severity: "error",
-      summary: "Validation Error",
-      detail: "Item label is required.",
-      life: TOAST_DURATION_NORMAL,
-    });
+    notifyError("Item label is required.", "Validation Error");
     return;
   }
 
   if (!isSafeImageUrl(editItemForm.value.img_url)) {
-    toast.add({
-      severity: "error",
-      summary: "Invalid Image URL",
-      detail: "Image URL must use http:// or https:// protocol.",
-      life: TOAST_DURATION_NORMAL,
-    });
+    notifyError("Image URL must use http:// or https:// protocol.", "Invalid Image URL");
     return;
   }
+
+  if (submitting.value) return;
 
   submitting.value = true;
   try {
@@ -817,68 +738,39 @@ async function updateItem() {
       init_rating: editItemForm.value.init_rating,
     });
 
-    toast.add({
-      severity: "success",
-      summary: "Item Updated",
-      detail: `"${editItemForm.value.label}" has been updated.`,
-      life: TOAST_DURATION_NORMAL,
-    });
-
-    displayEditItemModal.value = false;
+    notifySuccess("Item Updated", `"${editItemForm.value.label}" has been updated.`);
+    modals.editItem.close();
     await loadRanking();
   } catch (error) {
-    toast.add({
-      severity: "error",
-      summary: "Failed to update item",
-      detail:
-        error instanceof HttpError
-          ? error.payload?.message || "Unexpected backend response."
-          : "Unable to reach the backend.",
-      life: TOAST_DURATION_LONG,
-    });
+    notifyError(error, "Failed to update item");
   } finally {
     submitting.value = false;
   }
 }
 
 async function deleteItem() {
-  if (!itemToDelete.value) return;
+  if (!itemToDelete.value || submitting.value) return;
 
   submitting.value = true;
   try {
     await REST.del(`/item/${itemToDelete.value.id}`);
-
-    toast.add({
-      severity: "success",
-      summary: "Item Deleted",
-      detail: `"${itemToDelete.value.label}" has been deleted.`,
-      life: TOAST_DURATION_NORMAL,
-    });
-
-    displayDeleteConfirmModal.value = false;
+    notifySuccess("Item Deleted", `"${itemToDelete.value.label}" has been deleted.`);
+    modals.deleteItem.close();
     itemToDelete.value = null;
     await loadRanking();
   } catch (error) {
-    toast.add({
-      severity: "error",
-      summary: "Failed to delete item",
-      detail:
-        error instanceof HttpError
-          ? error.payload?.message || "Unexpected backend response."
-          : "Unable to reach the backend.",
-      life: TOAST_DURATION_LONG,
-    });
+    notifyError(error, "Failed to delete item");
   } finally {
     submitting.value = false;
   }
 }
 
 function openBulkDeleteConfirmDialog() {
-  displayBulkDeleteConfirmModal.value = true;
+  modals.bulkDelete.open();
 }
 
 async function bulkDeleteItems() {
-  if (selectedItems.value.length === 0) return;
+  if (selectedItems.value.length === 0 || submitting.value) return;
 
   submitting.value = true;
   let successCount = 0;
@@ -896,38 +788,20 @@ async function bulkDeleteItems() {
       }
     }
 
-    // Show result toast
-    if (successCount > 0) {
-      toast.add({
-        severity: errorCount > 0 ? "warn" : "success",
-        summary: `Deleted ${successCount} items`,
-        detail: errorCount > 0 ? `${errorCount} items failed to delete` : "",
-        life: TOAST_DURATION_NORMAL,
-      });
+    // Show result notifications
+    if (successCount > 0 && errorCount > 0) {
+      notifyWarn(`Deleted ${successCount} items`, `${errorCount} items failed to delete`);
+    } else if (successCount > 0) {
+      notifySuccess(`Deleted ${successCount} items`);
+    } else if (errorCount > 0) {
+      notifyError("All deletions failed. Please try again.", "Failed to delete items");
     }
 
-    if (errorCount > 0 && successCount === 0) {
-      toast.add({
-        severity: "error",
-        summary: "Failed to delete items",
-        detail: "All deletions failed. Please try again.",
-        life: TOAST_DURATION_LONG,
-      });
-    }
-
-    displayBulkDeleteConfirmModal.value = false;
+    modals.bulkDelete.close();
     selectedItems.value = [];
     await loadRanking();
   } catch (error) {
-    toast.add({
-      severity: "error",
-      summary: "Failed to delete items",
-      detail:
-        error instanceof HttpError
-          ? error.payload?.message || "Unexpected backend response."
-          : "Unable to reach the backend.",
-      life: TOAST_DURATION_LONG,
-    });
+    notifyError(error, "Failed to delete items");
   } finally {
     submitting.value = false;
   }
