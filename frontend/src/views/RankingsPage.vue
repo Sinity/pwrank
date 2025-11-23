@@ -233,15 +233,14 @@ import { useToast } from "primevue/usetoast";
 import { useConfirm } from "primevue/useconfirm";
 
 import { REST, HttpError } from "../rest";
+import { FALLBACK_IMAGE_SVG, TOAST_DURATION_NORMAL, TOAST_DURATION_LONG } from "../constants";
 
 const router = useRouter();
 const toast = useToast();
 const confirm = useConfirm();
 
-const FALLBACK_IMAGE = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22200%22 height=%22200%22%3E%3Crect fill=%22%23ddd%22 width=%22200%22 height=%22200%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%23999%22 font-size=%2224%22%3ENo Image%3C/text%3E%3C/svg%3E';
-
 const handleImageError = (event) => {
-  event.target.src = FALLBACK_IMAGE;
+  event.target.src = FALLBACK_IMAGE_SVG;
 };
 
 const rankings = ref([]);

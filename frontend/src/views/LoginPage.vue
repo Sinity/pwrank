@@ -40,7 +40,7 @@
           class="p-button-secondary"
           @click="register"
           :loading="loading"
-          :disabled="!email || password.length < 8"
+          :disabled="!email || password.length < MIN_PASSWORD_LENGTH"
         />
       </div>
     </section>
@@ -75,6 +75,12 @@ import { useRoute, useRouter } from "vue-router";
 import { useToast } from "primevue/usetoast";
 
 import { REST, HttpError } from "../rest";
+import {
+  MIN_PASSWORD_LENGTH,
+  TOAST_DURATION_SHORT,
+  TOAST_DURATION_NORMAL,
+  TOAST_DURATION_LONG,
+} from "../constants";
 
 const email = ref("");
 const password = ref("");
@@ -144,12 +150,12 @@ async function register() {
   }
 
   // Password validation
-  if (!password.value || password.value.length < 8) {
+  if (!password.value || password.value.length < MIN_PASSWORD_LENGTH) {
     notify({
       severity: "error",
       summary: "Invalid password",
-      detail: "Password must be at least 8 characters long.",
-      life: 4000,
+      detail: `Password must be at least ${MIN_PASSWORD_LENGTH} characters long.`,
+      life: TOAST_DURATION_LONG,
     });
     return;
   }

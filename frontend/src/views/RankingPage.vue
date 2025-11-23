@@ -105,6 +105,7 @@
           icon="pi pi-check"
           @click="syncItems"
           :loading="syncing"
+          :disabled="!isSyncFormValid"
           autofocus
         />
       </template>
@@ -357,7 +358,7 @@
       <Column field="img_url" header="Image">
         <template #body="{ data }">
           <img
-            :src="data.img_url || FALLBACK_IMAGE"
+            :src="data.img_url || FALLBACK_IMAGE_SVG"
             :alt="data.label"
             width="80"
             @error="handleImageError"
@@ -368,7 +369,7 @@
         <template #body="{ data }">
           <div style="display: flex; align-items: center; gap: 0.5rem;">
             <img
-              :src="data.img_url || FALLBACK_IMAGE"
+              :src="data.img_url || FALLBACK_IMAGE_SVG"
               :alt="data.label"
               width="40"
               style="border-radius: 4px;"
@@ -451,16 +452,22 @@ import { useRoute, useRouter } from "vue-router";
 import { useToast } from "primevue/usetoast";
 
 import { REST, HttpError } from "../rest";
+import {
+  FALLBACK_IMAGE_SVG,
+  TOAST_DURATION_SHORT,
+  TOAST_DURATION_NORMAL,
+  TOAST_DURATION_LONG,
+  MIN_ITEMS_FOR_RANKING,
+  SEARCH_DEBOUNCE_MS,
+} from "../constants";
 
 const route = useRoute();
 const router = useRouter();
 const toast = useToast();
 
-// Fallback image for broken or missing images
-const FALLBACK_IMAGE = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22200%22 height=%22200%22%3E%3Crect fill=%22%23ddd%22 width=%22200%22 height=%22200%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%23999%22 font-size=%2224%22%3ENo Image%3C/text%3E%3C/svg%3E';
-
+// Fallback image handler
 const handleImageError = (event) => {
-  event.target.src = FALLBACK_IMAGE;
+  event.target.src = FALLBACK_IMAGE_SVG;
 };
 
 const ranking = ref(null);
@@ -536,6 +543,15 @@ const anilistStatusOptions = [
 
 const isAddItemFormValid = computed(() => itemForm.value.label.trim().length > 0);
 const isEditItemFormValid = computed(() => editItemForm.value.label.trim().length > 0);
+const isSyncFormValid = computed(() => {
+  if (!ranking.value) return false;
+  if (ranking.value.datasource === 'anilist') {
+    return anilistUsername.value.trim().length > 0;
+  } else if (ranking.value.datasource === 'steam') {
+    return steamId.value.trim().length > 0;
+  }
+  return false;
+});
 
 function getCompletionPercentage() {
   if (!ranking.value || ranking.value.item_count < 2) return 0;
