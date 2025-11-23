@@ -4,7 +4,7 @@
     <ConfirmDialog />
     <Dialog
       header="Create ranking"
-      v-model:visible="displayCreateRankingModal"
+      v-model:visible="modals.create.isOpen.value"
       :style="{ width: '50vw' }"
       :modal="true"
     >
@@ -42,7 +42,7 @@
           label="Cancel"
           icon="pi pi-times"
           class="p-button-text"
-          @click="displayCreateRankingModal = false"
+          @click="modals.create.close()"
         />
         <Button
           label="Create"
@@ -57,7 +57,7 @@
 
     <Dialog
       header="Modify ranking"
-      v-model:visible="displayModifyRankingModal"
+      v-model:visible="modals.modify.isOpen.value"
       :style="{ width: '50vw' }"
       :modal="true"
     >
@@ -80,7 +80,7 @@
           label="Cancel"
           icon="pi pi-times"
           class="p-button-text"
-          @click="displayModifyRankingModal = false"
+          @click="modals.modify.close()"
         />
         <Button
           label="Save"
@@ -257,15 +257,18 @@
 <script setup>
 import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
-import { useToast } from "primevue/usetoast";
 import { useConfirm } from "primevue/useconfirm";
 
-import { REST, HttpError } from "../rest";
-import { FALLBACK_IMAGE_SVG, TOAST_DURATION_NORMAL, TOAST_DURATION_LONG } from "../constants";
+import { REST } from "../rest";
+import { FALLBACK_IMAGE_SVG } from "../constants";
+import { useNotification } from "../composables/useNotification";
+import { useModals } from "../composables/useModal";
 
 const router = useRouter();
-const toast = useToast();
 const confirm = useConfirm();
+const { notifySuccess, notifyError } = useNotification();
+
+const modals = useModals(['create', 'modify']);
 
 const handleImageError = (event) => {
   event.target.src = FALLBACK_IMAGE_SVG;
@@ -275,8 +278,6 @@ const rankings = ref([]);
 const loading = ref(false);
 const saving = ref(false);
 
-const displayCreateRankingModal = ref(false);
-const displayModifyRankingModal = ref(false);
 const rankingId = ref("");
 const name = ref("");
 const datasource = ref("steam");
@@ -309,20 +310,14 @@ function badgeClass(source) {
 }
 
 async function refreshRankings() {
+  if (loading.value) return;
+
   loading.value = true;
   try {
     const data = await REST.get("/ranking");
     rankings.value = data.rankings ?? [];
   } catch (error) {
-    toast.add({
-      severity: "error",
-      summary: "Failed to load rankings",
-      detail:
-        error instanceof HttpError
-          ? error.payload?.message || "Unexpected backend response."
-          : "Unable to reach the backend.",
-      life: TOAST_DURATION_LONG,
-    });
+    notifyError(error, "Failed to load rankings");
   } finally {
     loading.value = false;
   }
@@ -331,16 +326,18 @@ async function refreshRankings() {
 function showCreateRanking() {
   name.value = "";
   datasource.value = "steam";
-  displayCreateRankingModal.value = true;
+  modals.create.open();
 }
 
 function showModifyRanking(ranking) {
   rankingId.value = ranking.id;
   name.value = ranking.name;
-  displayModifyRankingModal.value = true;
+  modals.modify.open();
 }
 
 async function createRanking() {
+  if (saving.value) return;
+
   saving.value = true;
   try {
     const payload = {
@@ -348,53 +345,29 @@ async function createRanking() {
       source: datasource.value,
     };
     const data = await REST.post("/ranking", payload);
-    toast.add({
-      severity: "success",
-      summary: "Ranking created",
-      detail: data.message ?? "",
-      life: TOAST_DURATION_NORMAL,
-    });
-    displayCreateRankingModal.value = false;
+    notifySuccess("Ranking created", data.message ?? "");
+    modals.create.close();
     await refreshRankings();
   } catch (error) {
-    toast.add({
-      severity: "error",
-      summary: "Failed to create ranking",
-      detail:
-        error instanceof HttpError
-          ? error.payload?.message || "Unexpected backend response."
-          : "Unable to reach the backend.",
-      life: TOAST_DURATION_LONG,
-    });
+    notifyError(error, "Failed to create ranking");
   } finally {
     saving.value = false;
   }
 }
 
 async function modifyRanking() {
+  if (saving.value) return;
+
   saving.value = true;
   try {
     const data = await REST.put(`/ranking/${rankingId.value}`, {
       name: name.value,
     });
-    toast.add({
-      severity: "success",
-      summary: "Ranking updated",
-      detail: data.message ?? "",
-      life: TOAST_DURATION_NORMAL,
-    });
-    displayModifyRankingModal.value = false;
+    notifySuccess("Ranking updated", data.message ?? "");
+    modals.modify.close();
     await refreshRankings();
   } catch (error) {
-    toast.add({
-      severity: "error",
-      summary: "Failed to update ranking",
-      detail:
-        error instanceof HttpError
-          ? error.payload?.message || "Unexpected backend response."
-          : "Unable to reach the backend.",
-      life: TOAST_DURATION_LONG,
-    });
+    notifyError(error, "Failed to update ranking");
   } finally {
     saving.value = false;
   }
@@ -409,23 +382,10 @@ async function deleteRanking(id) {
     accept: async () => {
       try {
         const data = await REST.del(`/ranking/${id}`);
-        toast.add({
-          severity: "success",
-          summary: "Ranking deleted",
-          detail: data.message ?? "",
-          life: TOAST_DURATION_NORMAL,
-        });
+        notifySuccess("Ranking deleted", data.message ?? "");
         await refreshRankings();
       } catch (error) {
-        toast.add({
-          severity: "error",
-          summary: "Failed to delete ranking",
-          detail:
-            error instanceof HttpError
-              ? error.payload?.message || "Unexpected backend response."
-              : "Unable to reach the backend.",
-          life: TOAST_DURATION_LONG,
-        });
+        notifyError(error, "Failed to delete ranking");
       }
     },
   });

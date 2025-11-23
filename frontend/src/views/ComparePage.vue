@@ -48,14 +48,14 @@
 <script setup>
 import { onMounted, onUnmounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { useToast } from "primevue/usetoast";
 
 import { REST, HttpError } from "../rest";
-import { FALLBACK_IMAGE_SVG, TOAST_DURATION_SHORT, TOAST_DURATION_LONG } from "../constants";
+import { FALLBACK_IMAGE_SVG } from "../constants";
+import { useNotification } from "../composables/useNotification";
 
 const route = useRoute();
 const router = useRouter();
-const toast = useToast();
+const { notifySuccess, notifyError } = useNotification();
 
 const rankingId = ref(route.params.id);
 const items = ref([]);
@@ -108,23 +108,10 @@ async function submitComparison(winnerId, loserId) {
       winitem: winnerId,
       loseitem: loserId,
     });
-    toast.add({
-      severity: "success",
-      summary: "Comparison saved",
-      detail: "",
-      life: TOAST_DURATION_SHORT,
-    });
+    notifySuccess("Comparison saved");
     await loadComparison();
   } catch (error) {
-    toast.add({
-      severity: "error",
-      summary: "Failed to submit comparison",
-      detail:
-        error instanceof HttpError
-          ? error.payload?.message || "Unexpected backend response."
-          : "Unable to reach the backend.",
-      life: TOAST_DURATION_LONG,
-    });
+    notifyError(error, "Failed to submit comparison");
   } finally {
     loading.value = false;
   }

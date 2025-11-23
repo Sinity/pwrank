@@ -32,7 +32,7 @@
           icon="pi pi-sign-in"
           @click="login"
           :loading="loading"
-          :disabled="!isFormValid"
+          :disabled="!isLoginFormValid"
         />
         <Button
           label="Register"
@@ -40,7 +40,7 @@
           class="p-button-secondary"
           @click="register"
           :loading="loading"
-          :disabled="!email || password.length < MIN_PASSWORD_LENGTH"
+          :disabled="!isRegisterFormValid"
         />
       </div>
     </section>
@@ -72,22 +72,20 @@
 <script setup>
 import { computed, onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { useToast } from "primevue/usetoast";
 
 import { REST, HttpError } from "../rest";
-import {
-  MIN_PASSWORD_LENGTH,
-  TOAST_DURATION_SHORT,
-  TOAST_DURATION_NORMAL,
-  TOAST_DURATION_LONG,
-} from "../constants";
+import { MIN_PASSWORD_LENGTH } from "../constants";
+import { useNotification } from "../composables/useNotification";
+import { useFormValidation } from "../composables/useFormValidation";
 
 const email = ref("");
 const password = ref("");
 const session = ref(REST.userIdentity());
 const loading = ref(false);
 
-const toast = useToast();
+const { notifySuccess, notifyError, notifyInfo, notifyWarn } = useNotification();
+const { isValidEmail, isPasswordValid } = useFormValidation();
+
 const router = useRouter();
 const route = useRoute();
 
@@ -98,33 +96,27 @@ const redirectTarget = computed(() => {
 
 const user = computed(() => session.value);
 
-const isFormValid = computed(() => {
-  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailPattern.test(email.value) && password.value.length >= 1;
+const isLoginFormValid = computed(() => {
+  return isValidEmail(email.value) && password.value.length >= 1;
 });
 
-function notify({ severity, summary, detail, life = 3000 }) {
-  toast.add({ severity, summary, detail, life });
-}
+const isRegisterFormValid = computed(() => {
+  return isValidEmail(email.value) && isPasswordValid(password.value);
+});
 
 async function login() {
-  if (!isFormValid.value) return;
+  if (!isLoginFormValid.value || loading.value) return;
 
   loading.value = true;
   try {
     const result = await REST.login(email.value, password.value);
     if (!result.ok) {
-      notify({
-        severity: "error",
-        summary: "Login failed",
-        detail: result.message,
-        life: TOAST_DURATION_LONG,
-      });
+      notifyError(result.message, "Login failed");
       return;
     }
 
     session.value = REST.userIdentity();
-    notify({ severity: "success", summary: "Logged in", detail: "", life: TOAST_DURATION_SHORT });
+    notifySuccess("Logged in");
 
     if (redirectTarget.value) {
       router.push(redirectTarget.value);
@@ -137,28 +129,7 @@ async function login() {
 }
 
 async function register() {
-  // Email validation
-  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailPattern.test(email.value)) {
-    notify({
-      severity: "error",
-      summary: "Invalid email",
-      detail: "Please enter a valid email address.",
-      life: TOAST_DURATION_LONG,
-    });
-    return;
-  }
-
-  // Password validation
-  if (!password.value || password.value.length < MIN_PASSWORD_LENGTH) {
-    notify({
-      severity: "error",
-      summary: "Invalid password",
-      detail: `Password must be at least ${MIN_PASSWORD_LENGTH} characters long.`,
-      life: TOAST_DURATION_LONG,
-    });
-    return;
-  }
+  if (!isRegisterFormValid.value || loading.value) return;
 
   loading.value = true;
   try {
@@ -166,23 +137,9 @@ async function register() {
       email: email.value,
       password: password.value,
     });
-    notify({
-      severity: "success",
-      summary: "Registration successful",
-      detail: data.message ?? "",
-      life: TOAST_DURATION_NORMAL,
-    });
+    notifySuccess("Registration successful", data.message ?? "");
   } catch (error) {
-    const detail =
-      error instanceof HttpError
-        ? error.payload?.message ?? "Registration failed."
-        : "Unable to reach the backend.";
-    notify({
-      severity: "error",
-      summary: "Registration failed",
-      detail,
-      life: TOAST_DURATION_LONG,
-    });
+    notifyError(error, "Registration failed");
   } finally {
     loading.value = false;
   }
@@ -191,18 +148,18 @@ async function register() {
 async function refresh() {
   const refreshed = await REST.refreshToken();
   session.value = REST.userIdentity();
-  notify({
-    severity: refreshed ? "success" : "warn",
-    summary: refreshed ? "Token refreshed" : "Refresh failed",
-    detail: refreshed ? "" : "Please log in again.",
-    life: TOAST_DURATION_NORMAL,
-  });
+
+  if (refreshed) {
+    notifySuccess("Token refreshed");
+  } else {
+    notifyWarn("Refresh failed", "Please log in again.");
+  }
 }
 
 function logout() {
   REST.logout();
   session.value = null;
-  notify({ severity: "info", summary: "Logged out", detail: "", life: TOAST_DURATION_SHORT });
+  notifyInfo("Logged out");
 }
 
 onMounted(() => {
