@@ -72,6 +72,7 @@
             v-model="anilistUsername"
             type="text"
             placeholder="Username"
+            maxlength="50"
           />
         </div>
         <div class="flex flex-column gap-2">
@@ -95,6 +96,7 @@
             v-model="steamId"
             type="text"
             placeholder="Steam ID"
+            maxlength="30"
           />
         </div>
       </div>
@@ -145,16 +147,16 @@
           <small id="item_img_url_help" class="help-text">URL to an image representing this item</small>
         </div>
         <div class="flex flex-column gap-2">
-          <label for="item_init_rating">Initial Rating (0-10)</label>
+          <label for="item_init_rating">Initial Rating ({{ RATING_SCALE_MIN }}-{{ RATING_SCALE_MAX }})</label>
           <InputNumber
             id="item_init_rating"
             v-model="itemForm.init_rating"
-            :min="0"
-            :max="10"
+            :min="RATING_SCALE_MIN"
+            :max="RATING_SCALE_MAX"
             :step="1"
             aria-describedby="item_init_rating_help"
           />
-          <small id="item_init_rating_help" class="help-text">Starting rating before comparisons (0 = lowest, 10 = highest)</small>
+          <small id="item_init_rating_help" class="help-text">Starting rating before comparisons ({{ RATING_SCALE_MIN }} = lowest, {{ RATING_SCALE_MAX }} = highest)</small>
         </div>
       </div>
 
@@ -210,16 +212,16 @@
           <small id="edit_item_img_url_help" class="help-text">URL to an image representing this item</small>
         </div>
         <div class="flex flex-column gap-2">
-          <label for="edit_item_init_rating">Initial Rating (0-10)</label>
+          <label for="edit_item_init_rating">Initial Rating ({{ RATING_SCALE_MIN }}-{{ RATING_SCALE_MAX }})</label>
           <InputNumber
             id="edit_item_init_rating"
             v-model="editItemForm.init_rating"
-            :min="0"
-            :max="10"
+            :min="RATING_SCALE_MIN"
+            :max="RATING_SCALE_MAX"
             :step="1"
             aria-describedby="edit_item_init_rating_help"
           />
-          <small id="edit_item_init_rating_help" class="help-text">Starting rating before comparisons (0 = lowest, 10 = highest)</small>
+          <small id="edit_item_init_rating_help" class="help-text">Starting rating before comparisons ({{ RATING_SCALE_MIN }} = lowest, {{ RATING_SCALE_MAX }} = highest)</small>
         </div>
       </div>
 
@@ -367,7 +369,7 @@
       </Column>
       <Column field="label" header="Label" :sortable="true">
         <template #body="{ data }">
-          <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <div v-memo="[data.label, data.img_url]" style="display: flex; align-items: center; gap: 0.5rem;">
             <img
               :src="data.img_url || FALLBACK_IMAGE_SVG"
               :alt="data.label"
@@ -381,7 +383,7 @@
       </Column>
       <Column field="curr_rating" header="Current Rating" :sortable="true">
         <template #body="{ data }">
-          <div v-if="data.curr_rating !== null" style="display: flex; align-items: center; gap: 0.5rem;">
+          <div v-if="data.curr_rating !== null" v-memo="[data.curr_rating]" style="display: flex; align-items: center; gap: 0.5rem;">
             <span :style="{ fontWeight: 'bold', color: getRatingColor(data.curr_rating), fontSize: '1.1rem' }">
               {{ data.curr_rating }}
             </span>
@@ -402,7 +404,7 @@
       </Column>
       <Column field="stderr" header="Uncertainty" :sortable="true">
         <template #body="{ data }">
-          <div v-if="data.stderr !== undefined && data.stderr > 0" style="display: flex; align-items: center; gap: 0.5rem;">
+          <div v-if="data.stderr !== undefined && data.stderr > 0" v-memo="[data.stderr]" style="display: flex; align-items: center; gap: 0.5rem;">
             <span :style="{ color: getUncertaintyColor(data.stderr) }">
               {{ data.stderr.toFixed(2) }}
             </span>
@@ -451,8 +453,14 @@ import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
 import { REST } from "../rest";
-import { FALLBACK_IMAGE_SVG, MIN_ITEMS_FOR_RANKING } from "../constants";
-import { isSafeImageUrl } from "../utils/validation";
+import {
+  FALLBACK_IMAGE_SVG,
+  MIN_ITEMS_FOR_RANKING,
+  RATING_SCALE_MIN,
+  RATING_SCALE_MAX,
+  DEFAULT_INIT_RATING,
+} from "../constants";
+import { isSafeImageUrl, sanitizeForCSV } from "../utils/validation";
 import { useNotification } from "../composables/useNotification";
 import { useModals } from "../composables/useModal";
 
@@ -519,8 +527,8 @@ const steamId = ref("");
 const anilistUsername = ref("");
 const anilistStatuses = ref([]);
 
-const itemForm = ref({ label: "", img_url: "", init_rating: 5 });
-const editItemForm = ref({ id: "", label: "", img_url: "", init_rating: 5 });
+const itemForm = ref({ label: "", img_url: "", init_rating: DEFAULT_INIT_RATING });
+const editItemForm = ref({ id: "", label: "", img_url: "", init_rating: DEFAULT_INIT_RATING });
 const itemToDelete = ref(null);
 
 const anilistStatusOptions = [
@@ -578,7 +586,7 @@ function exportToCSV() {
       .sort((a, b) => (b.curr_rating ?? 0) - (a.curr_rating ?? 0))
       .map((item, index) => [
         index + 1,
-        `"${item.label.replace(/"/g, '""')}"`,
+        sanitizeForCSV(item.label),
         item.curr_rating ?? "",
         item.ability ?? "",
         item.stderr ?? "",
@@ -667,7 +675,7 @@ async function syncItems() {
 }
 
 function openAddItemDialog() {
-  itemForm.value = { label: "", img_url: "", init_rating: 5 };
+  itemForm.value = { label: "", img_url: "", init_rating: DEFAULT_INIT_RATING };
   modals.addItem.open();
 }
 
@@ -676,7 +684,7 @@ function openEditItemDialog(item) {
     id: item.id,
     label: item.label,
     img_url: item.img_url || "",
-    init_rating: typeof item.init_rating === "number" ? item.init_rating : 5,
+    init_rating: typeof item.init_rating === "number" ? item.init_rating : DEFAULT_INIT_RATING,
   };
   modals.editItem.open();
 }

@@ -14,6 +14,8 @@
             id="email"
             type="email"
             placeholder="Email"
+            maxlength="254"
+            autocomplete="email"
           />
         </span>
         <Password

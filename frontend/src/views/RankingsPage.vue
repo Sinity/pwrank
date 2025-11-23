@@ -16,6 +16,7 @@
             id="name"
             type="text"
             placeholder="Enter ranking name"
+            maxlength="255"
             aria-required="true"
             aria-describedby="name_help"
           />
