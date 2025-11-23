@@ -1,10 +1,23 @@
 /**
- * Validation utility functions
+ * Validation utility functions for form inputs and user data.
+ * Provides consistent validation patterns across the application
+ * with security-first approach.
+ *
+ * @module utils/validation
  */
 
 /**
- * Validates that a URL uses a safe protocol (http/https)
- * Prevents javascript:, data:, and other potentially dangerous protocols
+ * Validates that a URL uses a safe protocol to prevent XSS attacks.
+ * Allows http://, https://, and data: URIs while blocking dangerous protocols
+ * like javascript:, vbscript:, and file:.
+ *
+ * @example
+ * ```js
+ * isSafeImageUrl('https://example.com/image.jpg'); // true
+ * isSafeImageUrl('javascript:alert(1)'); // false
+ * isSafeImageUrl('data:image/png;base64,...'); // true
+ * isSafeImageUrl(''); // true (empty is safe)
+ * ```
  *
  * @param {string} url - The URL to validate
  * @returns {boolean} True if URL is safe or empty, false if potentially dangerous
@@ -29,9 +42,17 @@ export function isSafeImageUrl(url) {
 }
 
 /**
- * Validates email format
+ * Validates email format using a simple regex pattern.
+ * Checks for basic email structure (local@domain.tld).
  *
- * @param {string} email - Email to validate
+ * @example
+ * ```js
+ * isValidEmail('user@example.com'); // true
+ * isValidEmail('invalid.email'); // false
+ * isValidEmail('user@domain'); // false (no TLD)
+ * ```
+ *
+ * @param {string} email - Email address to validate
  * @returns {boolean} True if valid email format
  */
 export function isValidEmail(email) {
@@ -40,7 +61,15 @@ export function isValidEmail(email) {
 }
 
 /**
- * Sanitizes a string for CSV export (escapes quotes)
+ * Sanitizes a string for CSV export by escaping quotes and wrapping in quotes.
+ * Follows RFC 4180 CSV standard for proper escaping.
+ *
+ * @example
+ * ```js
+ * sanitizeForCSV('Hello World'); // "Hello World"
+ * sanitizeForCSV('Say "Hello"'); // "Say ""Hello"""
+ * sanitizeForCSV('Value, with comma'); // "Value, with comma"
+ * ```
  *
  * @param {string} str - String to sanitize
  * @returns {string} Sanitized string wrapped in quotes

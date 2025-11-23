@@ -3,10 +3,33 @@ import { isValidEmail, isSafeImageUrl } from "../utils/validation";
 import { MIN_PASSWORD_LENGTH, MAX_ITEM_LABEL_LENGTH } from "../constants";
 
 /**
- * Composable for reusable form validation logic
- * Provides validation helpers and computed validators
+ * Composable for reusable form validation logic.
+ * Provides validation helpers and computed validators to ensure consistent
+ * validation patterns across the application.
  *
- * @returns {Object} Validation helper methods
+ * @example
+ * ```js
+ * const { isRequired, isPasswordValid, useEmailValidation } = useFormValidation();
+ * const emailRef = ref("");
+ * const isEmailValid = useEmailValidation(emailRef);
+ *
+ * if (isRequired(form.name) && isPasswordValid(form.password)) {
+ *   // Submit form
+ * }
+ * ```
+ *
+ * @returns {Object} Validation helper methods and factories
+ * @returns {Function} return.isRequired - Check if value is non-empty
+ * @returns {Function} return.isLengthValid - Validate string length
+ * @returns {Function} return.isPasswordValid - Validate password requirements
+ * @returns {Function} return.isLabelValid - Validate item label
+ * @returns {Function} return.isValidEmail - Validate email format
+ * @returns {Function} return.isSafeImageUrl - Validate image URL safety
+ * @returns {Function} return.areRequiredFieldsFilled - Check all required fields
+ * @returns {Function} return.useEmailValidation - Create computed email validator
+ * @returns {Function} return.useRequiredValidation - Create computed required validator
+ * @returns {Function} return.useImageUrlValidation - Create computed URL validator
+ * @returns {Function} return.useFormComplete - Create computed multi-field validator
  */
 export function useFormValidation() {
   /**

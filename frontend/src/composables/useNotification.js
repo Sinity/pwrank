@@ -7,10 +7,22 @@ import {
 } from "../constants";
 
 /**
- * Composable for standardized notification/toast messages
- * Reduces boilerplate and ensures consistent UX
+ * Composable for standardized notification/toast messages.
+ * Reduces boilerplate and ensures consistent UX across the application.
+ *
+ * @example
+ * ```js
+ * const { notifySuccess, notifyError } = useNotification();
+ * notifySuccess("Item saved");
+ * notifyError(error, "Failed to save item");
+ * ```
  *
  * @returns {Object} Notification helper methods
+ * @returns {Function} return.notifySuccess - Show success notification
+ * @returns {Function} return.notifyError - Show error notification
+ * @returns {Function} return.notifyWarn - Show warning notification
+ * @returns {Function} return.notifyInfo - Show info notification
+ * @returns {Function} return.withNotification - Wrap async operation with notifications
  */
 export function useNotification() {
   const toast = useToast();
