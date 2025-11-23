@@ -118,13 +118,13 @@ async function login() {
         severity: "error",
         summary: "Login failed",
         detail: result.message,
-        life: 4000,
+        life: TOAST_DURATION_LONG,
       });
       return;
     }
 
     session.value = REST.userIdentity();
-    notify({ severity: "success", summary: "Logged in", detail: "", life: 2000 });
+    notify({ severity: "success", summary: "Logged in", detail: "", life: TOAST_DURATION_SHORT });
 
     if (redirectTarget.value) {
       router.push(redirectTarget.value);
@@ -144,7 +144,7 @@ async function register() {
       severity: "error",
       summary: "Invalid email",
       detail: "Please enter a valid email address.",
-      life: 4000,
+      life: TOAST_DURATION_LONG,
     });
     return;
   }
@@ -170,7 +170,7 @@ async function register() {
       severity: "success",
       summary: "Registration successful",
       detail: data.message ?? "",
-      life: 3000,
+      life: TOAST_DURATION_NORMAL,
     });
   } catch (error) {
     const detail =
@@ -181,7 +181,7 @@ async function register() {
       severity: "error",
       summary: "Registration failed",
       detail,
-      life: 4000,
+      life: TOAST_DURATION_LONG,
     });
   } finally {
     loading.value = false;
@@ -195,14 +195,14 @@ async function refresh() {
     severity: refreshed ? "success" : "warn",
     summary: refreshed ? "Token refreshed" : "Refresh failed",
     detail: refreshed ? "" : "Please log in again.",
-    life: 3000,
+    life: TOAST_DURATION_NORMAL,
   });
 }
 
 function logout() {
   REST.logout();
   session.value = null;
-  notify({ severity: "info", summary: "Logged out", detail: "", life: 2000 });
+  notify({ severity: "info", summary: "Logged out", detail: "", life: TOAST_DURATION_SHORT });
 }
 
 onMounted(() => {

@@ -39,7 +39,13 @@
 
       <template #footer>
         <Button
-          label="Submit"
+          label="Cancel"
+          icon="pi pi-times"
+          class="p-button-text"
+          @click="displayCreateRankingModal = false"
+        />
+        <Button
+          label="Create"
           icon="pi pi-check"
           @click="createRanking"
           :loading="saving"
@@ -56,18 +62,28 @@
       :modal="true"
     >
       <div class="flex flex-column gap-3">
-        <label for="edit-name" class="sr-only">Name</label>
-        <InputText
-          v-model="name"
-          id="edit-name"
-          type="text"
-          placeholder="Name"
-        />
+        <div class="flex flex-column gap-2">
+          <label for="edit-name">Ranking Name *</label>
+          <InputText
+            v-model="name"
+            id="edit-name"
+            type="text"
+            placeholder="Enter new ranking name"
+            maxlength="255"
+            aria-required="true"
+          />
+        </div>
       </div>
 
       <template #footer>
         <Button
-          label="Submit"
+          label="Cancel"
+          icon="pi pi-times"
+          class="p-button-text"
+          @click="displayModifyRankingModal = false"
+        />
+        <Button
+          label="Save"
           icon="pi pi-check"
           @click="modifyRanking"
           :loading="saving"
@@ -122,6 +138,7 @@
               icon="pi pi-plus"
               label="Create new"
               @click="showCreateRanking"
+              v-tooltip.top="'Create a new ranking'"
             />
             <DataViewLayoutOptions v-model="layout" />
           </div>
@@ -132,14 +149,17 @@
             <div class="product-list-item">
               <img
                 :src="`${baseURL}${data.datasource}.png`"
-                :alt="data.datasource"
+                :alt="`${data.datasource} logo`"
                 @error="handleImageError"
               />
               <div class="product-list-detail">
                 <i class="pi pi-tag product-category-icon"></i>
                 <span class="product-category">{{ data.datasource }}</span>
                 <div class="product-name">{{ data.name }}</div>
-                <div class="product-description">{{ data.id }}</div>
+                <div class="product-description">
+                  {{ data.item_count }} {{ data.item_count === 1 ? 'item' : 'items' }} •
+                  {{ data.comp_count }} {{ data.comp_count === 1 ? 'comparison' : 'comparisons' }}
+                </div>
                 <div class="ranking-meta">
                   <span :class="badgeClass(data.datasource)">
                     {{ data.item_count }} items
@@ -156,18 +176,21 @@
                   @click="
                     router.push({ name: 'Ranking', params: { id: data.id } })
                   "
+                  v-tooltip.top="'View and manage ranking items'"
                 />
                 <Button
                   class="p-button-warning"
                   icon="pi pi-pencil"
                   label="Edit"
                   @click="showModifyRanking(data)"
+                  v-tooltip.top="'Rename this ranking'"
                 />
                 <Button
                   class="p-button-danger"
                   icon="pi pi-trash"
                   label="Delete"
                   @click="deleteRanking(data.id)"
+                  v-tooltip.top="'Delete this ranking permanently'"
                 />
               </div>
             </div>
@@ -194,11 +217,13 @@
               <div class="product-grid-item-content">
                 <img
                   :src="`${baseURL}${data.datasource}.png`"
-                  :alt="data.datasource"
+                  :alt="`${data.datasource} logo`"
                   @error="handleImageError"
                 />
                 <div class="product-name">{{ data.name }}</div>
-                <div class="product-description">{{ data.id }}</div>
+                <div class="product-description">
+                  {{ data.item_count }} {{ data.item_count === 1 ? 'item' : 'items' }}
+                </div>
               </div>
               <div class="product-grid-item-bottom">
                 <Button
@@ -206,16 +231,19 @@
                   @click="
                     router.push({ name: 'Ranking', params: { id: data.id } })
                   "
+                  v-tooltip.top="'Open ranking'"
                 />
                 <Button
                   class="p-button-warning"
                   icon="pi pi-pencil"
                   @click="showModifyRanking(data)"
+                  v-tooltip.top="'Rename'"
                 />
                 <Button
                   class="p-button-danger"
                   icon="pi pi-trash"
                   @click="deleteRanking(data.id)"
+                  v-tooltip.top="'Delete'"
                 />
               </div>
             </div>
@@ -293,7 +321,7 @@ async function refreshRankings() {
         error instanceof HttpError
           ? error.payload?.message || "Unexpected backend response."
           : "Unable to reach the backend.",
-      life: 4000,
+      life: TOAST_DURATION_LONG,
     });
   } finally {
     loading.value = false;
@@ -324,7 +352,7 @@ async function createRanking() {
       severity: "success",
       summary: "Ranking created",
       detail: data.message ?? "",
-      life: 3000,
+      life: TOAST_DURATION_NORMAL,
     });
     displayCreateRankingModal.value = false;
     await refreshRankings();
@@ -336,7 +364,7 @@ async function createRanking() {
         error instanceof HttpError
           ? error.payload?.message || "Unexpected backend response."
           : "Unable to reach the backend.",
-      life: 4000,
+      life: TOAST_DURATION_LONG,
     });
   } finally {
     saving.value = false;
@@ -353,7 +381,7 @@ async function modifyRanking() {
       severity: "success",
       summary: "Ranking updated",
       detail: data.message ?? "",
-      life: 3000,
+      life: TOAST_DURATION_NORMAL,
     });
     displayModifyRankingModal.value = false;
     await refreshRankings();
@@ -365,7 +393,7 @@ async function modifyRanking() {
         error instanceof HttpError
           ? error.payload?.message || "Unexpected backend response."
           : "Unable to reach the backend.",
-      life: 4000,
+      life: TOAST_DURATION_LONG,
     });
   } finally {
     saving.value = false;
@@ -385,7 +413,7 @@ async function deleteRanking(id) {
           severity: "success",
           summary: "Ranking deleted",
           detail: data.message ?? "",
-          life: 3000,
+          life: TOAST_DURATION_NORMAL,
         });
         await refreshRankings();
       } catch (error) {
@@ -396,7 +424,7 @@ async function deleteRanking(id) {
             error instanceof HttpError
               ? error.payload?.message || "Unexpected backend response."
               : "Unable to reach the backend.",
-          life: 4000,
+          life: TOAST_DURATION_LONG,
         });
       }
     },

@@ -610,7 +610,7 @@ function exportToCSV() {
     severity: "success",
     summary: "Exported",
     detail: `Exported ${rows.length} items to CSV`,
-    life: 3000,
+    life: TOAST_DURATION_NORMAL,
   });
 }
 
@@ -643,7 +643,7 @@ async function loadRanking() {
         error instanceof HttpError
           ? error.payload?.message || "Unexpected backend response."
           : "Unable to reach the backend.",
-      life: 4000,
+      life: TOAST_DURATION_LONG,
     });
   } finally {
     loading.value = false;
@@ -666,7 +666,7 @@ async function syncItems() {
       severity: "success",
       summary: "Items synced",
       detail: "",
-      life: 2000,
+      life: TOAST_DURATION_SHORT,
     });
     await loadRanking();
     displaySyncModal.value = false;
@@ -678,7 +678,7 @@ async function syncItems() {
         error instanceof HttpError
           ? error.payload?.message || "Unexpected backend response."
           : "Unable to reach the backend.",
-      life: 4000,
+      life: TOAST_DURATION_LONG,
     });
   } finally {
     syncing.value = false;
@@ -711,7 +711,7 @@ async function addItem() {
       severity: "error",
       summary: "Validation Error",
       detail: "Item label is required.",
-      life: 3000,
+      life: TOAST_DURATION_NORMAL,
     });
     return;
   }
@@ -728,7 +728,7 @@ async function addItem() {
       severity: "success",
       summary: "Item Added",
       detail: `"${itemForm.value.label}" has been added to the ranking.`,
-      life: 3000,
+      life: TOAST_DURATION_NORMAL,
     });
 
     displayAddItemModal.value = false;
@@ -741,7 +741,7 @@ async function addItem() {
         error instanceof HttpError
           ? error.payload?.message || "Unexpected backend response."
           : "Unable to reach the backend.",
-      life: 4000,
+      life: TOAST_DURATION_LONG,
     });
   } finally {
     submitting.value = false;
@@ -754,7 +754,7 @@ async function updateItem() {
       severity: "error",
       summary: "Validation Error",
       detail: "Item label is required.",
-      life: 3000,
+      life: TOAST_DURATION_NORMAL,
     });
     return;
   }
@@ -771,7 +771,7 @@ async function updateItem() {
       severity: "success",
       summary: "Item Updated",
       detail: `"${editItemForm.value.label}" has been updated.`,
-      life: 3000,
+      life: TOAST_DURATION_NORMAL,
     });
 
     displayEditItemModal.value = false;
@@ -784,7 +784,7 @@ async function updateItem() {
         error instanceof HttpError
           ? error.payload?.message || "Unexpected backend response."
           : "Unable to reach the backend.",
-      life: 4000,
+      life: TOAST_DURATION_LONG,
     });
   } finally {
     submitting.value = false;
@@ -802,7 +802,7 @@ async function deleteItem() {
       severity: "success",
       summary: "Item Deleted",
       detail: `"${itemToDelete.value.label}" has been deleted.`,
-      life: 3000,
+      life: TOAST_DURATION_NORMAL,
     });
 
     displayDeleteConfirmModal.value = false;
@@ -816,7 +816,7 @@ async function deleteItem() {
         error instanceof HttpError
           ? error.payload?.message || "Unexpected backend response."
           : "Unable to reach the backend.",
-      life: 4000,
+      life: TOAST_DURATION_LONG,
     });
   } finally {
     submitting.value = false;
@@ -852,7 +852,7 @@ async function bulkDeleteItems() {
         severity: errorCount > 0 ? "warn" : "success",
         summary: `Deleted ${successCount} items`,
         detail: errorCount > 0 ? `${errorCount} items failed to delete` : "",
-        life: 3000,
+        life: TOAST_DURATION_NORMAL,
       });
     }
 
@@ -861,7 +861,7 @@ async function bulkDeleteItems() {
         severity: "error",
         summary: "Failed to delete items",
         detail: "All deletions failed. Please try again.",
-        life: 4000,
+        life: TOAST_DURATION_LONG,
       });
     }
 
@@ -876,7 +876,7 @@ async function bulkDeleteItems() {
         error instanceof HttpError
           ? error.payload?.message || "Unexpected backend response."
           : "Unable to reach the backend.",
-      life: 4000,
+      life: TOAST_DURATION_LONG,
     });
   } finally {
     submitting.value = false;
