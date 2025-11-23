@@ -460,6 +460,7 @@ import {
   MIN_ITEMS_FOR_RANKING,
   SEARCH_DEBOUNCE_MS,
 } from "../constants";
+import { isSafeImageUrl } from "../utils/validation";
 
 const route = useRoute();
 const router = useRouter();
@@ -575,43 +576,72 @@ function getUncertaintyColor(stderr) {
 }
 
 function exportToCSV() {
-  if (!items.value || items.value.length === 0) return;
+  if (!items.value || items.value.length === 0) {
+    toast.add({
+      severity: "warn",
+      summary: "Nothing to export",
+      detail: "Add items to the ranking before exporting.",
+      life: TOAST_DURATION_NORMAL,
+    });
+    return;
+  }
 
-  const headers = ["Rank", "Label", "Current Rating", "Ability Score", "Uncertainty", "Comparisons", "Initial Rating"];
-  const rows = items.value
-    .filter(item => item.curr_rating !== null)
-    .sort((a, b) => (b.curr_rating ?? 0) - (a.curr_rating ?? 0))
-    .map((item, index) => [
-      index + 1,
-      `"${item.label.replace(/"/g, '""')}"`,
-      item.curr_rating ?? "",
-      item.ability ?? "",
-      item.stderr ?? "",
-      item.comparisons_count || 0,
-      item.init_rating ?? "",
-    ]);
+  try {
+    const headers = ["Rank", "Label", "Current Rating", "Ability Score", "Uncertainty", "Comparisons", "Initial Rating"];
+    const rows = items.value
+      .filter(item => item.curr_rating !== null)
+      .sort((a, b) => (b.curr_rating ?? 0) - (a.curr_rating ?? 0))
+      .map((item, index) => [
+        index + 1,
+        `"${item.label.replace(/"/g, '""')}"`,
+        item.curr_rating ?? "",
+        item.ability ?? "",
+        item.stderr ?? "",
+        item.comparisons_count || 0,
+        item.init_rating ?? "",
+      ]);
 
-  const csv = [
-    headers.join(","),
-    ...rows.map(row => row.join(","))
-  ].join("\n");
+    if (rows.length === 0) {
+      toast.add({
+        severity: "warn",
+        summary: "No ranked items",
+        detail: "Items need to be compared before they can be exported with ratings.",
+        life: TOAST_DURATION_NORMAL,
+      });
+      return;
+    }
 
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-  const link = document.createElement("a");
-  const url = URL.createObjectURL(blob);
-  link.setAttribute("href", url);
-  link.setAttribute("download", `${ranking.value?.name || 'ranking'}_export.csv`);
-  link.style.visibility = "hidden";
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+    const csv = [
+      headers.join(","),
+      ...rows.map(row => row.join(","))
+    ].join("\n");
 
-  toast.add({
-    severity: "success",
-    summary: "Exported",
-    detail: `Exported ${rows.length} items to CSV`,
-    life: TOAST_DURATION_NORMAL,
-  });
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `${ranking.value?.name || 'ranking'}_export.csv`);
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url); // Clean up memory
+
+    toast.add({
+      severity: "success",
+      summary: "Exported",
+      detail: `Exported ${rows.length} items to CSV`,
+      life: TOAST_DURATION_NORMAL,
+    });
+  } catch (error) {
+    toast.add({
+      severity: "error",
+      summary: "Export failed",
+      detail: "Failed to create CSV file. Please try again.",
+      life: TOAST_DURATION_LONG,
+    });
+    console.error("CSV export error:", error);
+  }
 }
 
 watch(
@@ -716,6 +746,16 @@ async function addItem() {
     return;
   }
 
+  if (!isSafeImageUrl(itemForm.value.img_url)) {
+    toast.add({
+      severity: "error",
+      summary: "Invalid Image URL",
+      detail: "Image URL must use http:// or https:// protocol.",
+      life: TOAST_DURATION_NORMAL,
+    });
+    return;
+  }
+
   submitting.value = true;
   try {
     await REST.post(`/ranking/${rankingId.value}/items`, {
@@ -754,6 +794,16 @@ async function updateItem() {
       severity: "error",
       summary: "Validation Error",
       detail: "Item label is required.",
+      life: TOAST_DURATION_NORMAL,
+    });
+    return;
+  }
+
+  if (!isSafeImageUrl(editItemForm.value.img_url)) {
+    toast.add({
+      severity: "error",
+      summary: "Invalid Image URL",
+      detail: "Image URL must use http:// or https:// protocol.",
       life: TOAST_DURATION_NORMAL,
     });
     return;
