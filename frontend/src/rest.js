@@ -26,7 +26,8 @@ class RestClient {
       const raw = localStorage.getItem(STORAGE_KEY);
       return raw ? JSON.parse(raw) : null;
     } catch (error) {
-      console.warn("Failed to read auth payload:", error);
+      // Clear corrupted auth data silently
+      localStorage.removeItem(STORAGE_KEY);
       return null;
     }
   }

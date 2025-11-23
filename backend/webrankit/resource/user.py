@@ -18,7 +18,7 @@ class UserResource(Resource):
     def get(self, uid: str):
         user = User.get_or_none(User.id == uid)
         if user is None:
-            return {"message": f"User `{uid}` not found"}, 404
+            return {"message": f"User `{uid}` not found."}, 404
         return jsonify(user=_serialize_user(user))
 
     @admin_required
@@ -30,7 +30,7 @@ class UserResource(Resource):
     def put(self, uid: str):
         user = User.get_or_none(User.id == uid)
         if user is None:
-            return {"message": f"User `{uid}` not found"}, 404
+            return {"message": f"User `{uid}` not found."}, 404
 
         payload = request.get_json(silent=True) or {}
         email = payload.get("email")

@@ -22,7 +22,7 @@ class ItemCollectionResource(Resource):
         """List all items in a ranking."""
         ranking = Ranking.get_or_none(Ranking.id == ranking_uid)
         if ranking is None:
-            return {"message": f"Ranking `{ranking_uid}` not found"}, 404
+            return {"message": f"Ranking `{ranking_uid}` not found."}, 404
         if ranking.user.id != current_user.id:
             return {"message": "Ranking belongs to another user."}, 403
 
@@ -43,7 +43,7 @@ class ItemCollectionResource(Resource):
         """Create a new item in a ranking."""
         ranking = Ranking.get_or_none(Ranking.id == ranking_uid)
         if ranking is None:
-            return {"message": f"Ranking `{ranking_uid}` not found"}, 404
+            return {"message": f"Ranking `{ranking_uid}` not found."}, 404
         if ranking.user.id != current_user.id:
             return {"message": "Ranking belongs to another user."}, 403
 
@@ -109,7 +109,7 @@ class ItemResource(Resource):
         """Get a specific item."""
         item = Item.get_or_none(Item.id == uid)
         if item is None:
-            return {"message": f"Item `{uid}` not found"}, 404
+            return {"message": f"Item `{uid}` not found."}, 404
         if item.ranking.user.id != current_user.id:
             return {"message": "Item belongs to another user's ranking."}, 403
 
@@ -128,7 +128,7 @@ class ItemResource(Resource):
         """Update an item."""
         item = Item.get_or_none(Item.id == uid)
         if item is None:
-            return {"message": f"Item `{uid}` not found"}, 404
+            return {"message": f"Item `{uid}` not found."}, 404
         if item.ranking.user.id != current_user.id:
             return {"message": "Item belongs to another user's ranking."}, 403
 
@@ -190,7 +190,7 @@ class ItemResource(Resource):
         """Delete an item."""
         item = Item.get_or_none(Item.id == uid)
         if item is None:
-            return {"message": f"Item `{uid}` not found"}, 404
+            return {"message": f"Item `{uid}` not found."}, 404
         if item.ranking.user.id != current_user.id:
             return {"message": "Item belongs to another user's ranking."}, 403
 

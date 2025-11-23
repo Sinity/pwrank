@@ -25,7 +25,7 @@ class RankingResource(Resource):
     def get(self, uid: str):
         ranking = Ranking.get_or_none(Ranking.id == uid)
         if ranking is None:
-            return {"message": f"Ranking `{uid}` not found"}, 404
+            return {"message": f"Ranking `{uid}` not found."}, 404
         if ranking.user.id != current_user.id:
             return {"message": "Ranking belongs to another user."}, 403
 
@@ -78,7 +78,7 @@ class RankingResource(Resource):
     def post(self, uid: str):
         ranking = Ranking.get_or_none(Ranking.id == uid)
         if ranking is None:
-            return {"message": f"Ranking `{uid}` not found"}, 404
+            return {"message": f"Ranking `{uid}` not found."}, 404
 
         payload = request.get_json(silent=True) or {}
         datasource = ranking.datasource
@@ -87,12 +87,12 @@ class RankingResource(Resource):
             username = payload.get("anilist_username")
             statuses = payload.get("anilist_statuses") or []
             if not username:
-                return {"message": "anilist_username is required"}, 400
+                return {"message": "anilist_username is required."}, 400
             ranking.add_items_from_anilist(username, statuses)
         elif datasource == "steam":
             steam_id = payload.get("steam_id")
             if not steam_id:
-                return {"message": "steam_id is required"}, 400
+                return {"message": "steam_id is required."}, 400
             ranking.add_items_from_steam(steam_id)
         else:
             return {"message": f"Unknown datasource `{datasource}`"}, 400
@@ -103,7 +103,7 @@ class RankingResource(Resource):
     def delete(self, uid: str):
         ranking = Ranking.get_or_none(Ranking.id == uid)
         if ranking is None:
-            return {"message": f"Ranking `{uid}` not found"}, 404
+            return {"message": f"Ranking `{uid}` not found."}, 404
         if ranking.user.id != current_user.id:
             return {"message": "Ranking belongs to another user."}, 403
         deleted_rows = ranking.delete_instance(recursive=True)
@@ -113,7 +113,7 @@ class RankingResource(Resource):
     def put(self, uid: str):
         ranking = Ranking.get_or_none(Ranking.id == uid)
         if ranking is None:
-            return {"message": f"Ranking `{uid}` not found"}, 404
+            return {"message": f"Ranking `{uid}` not found."}, 404
         if ranking.user.id != current_user.id:
             return {"message": "Ranking belongs to another user."}, 403
 

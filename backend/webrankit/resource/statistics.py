@@ -21,7 +21,7 @@ class RankingStatisticsResource(Resource):
     def get(self, uid: str) -> tuple[Dict[str, Any], int]:
         ranking = Ranking.get_or_none(Ranking.id == uid)
         if ranking is None:
-            return {"message": f"Ranking `{uid}` not found"}, 404
+            return {"message": f"Ranking `{uid}` not found."}, 404
         if ranking.user.id != current_user.id:
             return {"message": "Ranking belongs to another user."}, 403
 

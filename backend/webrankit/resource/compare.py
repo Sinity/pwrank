@@ -12,7 +12,7 @@ from ..model import Comparison, Item, Ranking
 
 class CompareResource(Resource):
     @jwt_required()
-    def get(self, ranking_uid: str):
+    def get(self, ranking_uid: str) -> tuple[Dict[str, Any], int]:
         ranking = Ranking.get_or_none(Ranking.id == ranking_uid)
         if ranking is None:
             return {"message": f"Ranking `{ranking_uid}` not found."}, 404
@@ -36,10 +36,10 @@ class CompareResource(Resource):
         return jsonify(comparison=comparison)
 
     @jwt_required()
-    def post(self, ranking_uid: str):
+    def post(self, ranking_uid: str) -> tuple[Dict[str, Any], int]:
         ranking = Ranking.get_or_none(Ranking.id == ranking_uid)
         if ranking is None:
-            return {"message": f"Ranking `{ranking_uid}` not found"}, 404
+            return {"message": f"Ranking `{ranking_uid}` not found."}, 404
         if ranking.user.id != current_user.id:
             return {"message": "Ranking belongs to another user."}, 403
 

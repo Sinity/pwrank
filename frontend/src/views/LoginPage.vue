@@ -27,12 +27,20 @@
       </div>
 
       <div class="auth-actions">
-        <Button label="Login" icon="pi pi-sign-in" @click="login" />
+        <Button
+          label="Login"
+          icon="pi pi-sign-in"
+          @click="login"
+          :loading="loading"
+          :disabled="!isFormValid"
+        />
         <Button
           label="Register"
           icon="pi pi-user-plus"
           class="p-button-secondary"
           @click="register"
+          :loading="loading"
+          :disabled="!email || password.length < 8"
         />
       </div>
     </section>
@@ -71,6 +79,7 @@ import { REST, HttpError } from "../rest";
 const email = ref("");
 const password = ref("");
 const session = ref(REST.userIdentity());
+const loading = ref(false);
 
 const toast = useToast();
 const router = useRouter();
@@ -83,51 +92,41 @@ const redirectTarget = computed(() => {
 
 const user = computed(() => session.value);
 
+const isFormValid = computed(() => {
+  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailPattern.test(email.value) && password.value.length >= 1;
+});
+
 function notify({ severity, summary, detail, life = 3000 }) {
   toast.add({ severity, summary, detail, life });
 }
 
 async function login() {
-  // Basic email validation
-  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailPattern.test(email.value)) {
-    notify({
-      severity: "error",
-      summary: "Invalid email",
-      detail: "Please enter a valid email address.",
-      life: 4000,
-    });
-    return;
-  }
+  if (!isFormValid.value) return;
 
-  if (!password.value || password.value.length < 1) {
-    notify({
-      severity: "error",
-      summary: "Invalid password",
-      detail: "Please enter a password.",
-      life: 4000,
-    });
-    return;
-  }
+  loading.value = true;
+  try {
+    const result = await REST.login(email.value, password.value);
+    if (!result.ok) {
+      notify({
+        severity: "error",
+        summary: "Login failed",
+        detail: result.message,
+        life: 4000,
+      });
+      return;
+    }
 
-  const result = await REST.login(email.value, password.value);
-  if (!result.ok) {
-    notify({
-      severity: "error",
-      summary: "Login failed",
-      detail: result.message,
-      life: 4000,
-    });
-    return;
-  }
+    session.value = REST.userIdentity();
+    notify({ severity: "success", summary: "Logged in", detail: "", life: 2000 });
 
-  session.value = REST.userIdentity();
-  notify({ severity: "success", summary: "Logged in", detail: "", life: 2000 });
-
-  if (redirectTarget.value) {
-    router.push(redirectTarget.value);
-  } else {
-    router.push({ name: "Rankings" });
+    if (redirectTarget.value) {
+      router.push(redirectTarget.value);
+    } else {
+      router.push({ name: "Rankings" });
+    }
+  } finally {
+    loading.value = false;
   }
 }
 
@@ -155,6 +154,7 @@ async function register() {
     return;
   }
 
+  loading.value = true;
   try {
     const data = await REST.post("/auth/user", {
       email: email.value,
@@ -177,6 +177,8 @@ async function register() {
       detail,
       life: 4000,
     });
+  } finally {
+    loading.value = false;
   }
 }
 
